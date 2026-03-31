@@ -192,7 +192,7 @@ export default function AdminPage() {
       setCleanupMsg(data.message);
       loadEvents();
       if (manageEvent) loadEventPhotos(manageEvent);
-    } catch (err) {
+    } catch {
       setCleanupMsg("Cleanup failed.");
     }
   };

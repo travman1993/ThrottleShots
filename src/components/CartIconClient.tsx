@@ -1,13 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useCart } from "@/lib/cart";
 
 export function CartIconClient() {
   const { totalItems } = useCart();
 
   return (
-    
-      <a href="/cart"
+    <Link
+      href="/cart"
       className="relative text-text-secondary transition-colors hover:text-text-primary"
     >
       <svg
@@ -29,6 +30,6 @@ export function CartIconClient() {
           {totalItems}
         </span>
       )}
-    </a>
+    </Link>
   );
 }

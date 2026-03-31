@@ -1,19 +1,27 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import type { Photo } from "@/data/mock";
+
+interface Photo {
+  id: string;
+  image_url_watermarked: string;
+  thumbnail_url: string;
+  vehicle_type: string;
+  color: string;
+  price: number;
+}
 
 export function PhotoCard({ photo }: { photo: Photo }) {
   return (
-    <Link href={`/photo/${photo.id}`} className="group block overflow-hidden rounded-lg bg-bg-card border border-border transition-all hover:border-border-hover hover:shadow-lg hover:shadow-accent/5">
+    <Link
+      href={`/photo/${photo.id}`}
+      className="group block overflow-hidden rounded-lg bg-bg-card border border-border transition-all hover:border-border-hover hover:shadow-lg hover:shadow-accent/5"
+    >
       <div className="relative aspect-[4/3] overflow-hidden">
-        <Image
+        <img
           src={photo.thumbnail_url}
           alt={`${photo.color} ${photo.vehicle_type}`}
-          fill
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
-          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           loading="lazy"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />

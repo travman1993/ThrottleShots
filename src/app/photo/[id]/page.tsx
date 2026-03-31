@@ -1,15 +1,70 @@
 "use client";
 
-import Image from "next/image";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { getPhotoById, events } from "@/data/mock";
+import { supabase } from "@/lib/supabase";
 import { useCart } from "@/lib/cart";
-import { useState } from "react";
 
-export default function PhotoDetailPage({ params }: { params: { id: string } }) {
-  const photo = getPhotoById(params.id);
-  const { addItem, items } = useCart();
+interface Photo {
+  id: string;
+  event_id: string;
+  image_url_watermarked: string;
+  thumbnail_url: string;
+  vehicle_type: string;
+  color: string;
+  price: number;
+}
+
+interface EventRow {
+  id: string;
+  name: string;
+}
+
+export default function PhotoDetailPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const [photo, setPhoto] = useState<Photo | null>(null);
+  const [event, setEvent] = useState<EventRow | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { addItem, items, isFull } = useCart();
   const [added, setAdded] = useState(false);
+  
+
+  useEffect(() => {
+    loadPhoto();
+  }, [params.id]);
+
+  const loadPhoto = async () => {
+    const { data } = await supabase
+      .from("photos")
+      .select("*")
+      .eq("id", params.id)
+      .single();
+
+    if (data) {
+      setPhoto(data);
+
+      const { data: evt } = await supabase
+        .from("events")
+        .select("id, name")
+        .eq("id", data.event_id)
+        .single();
+
+      if (evt) setEvent(evt);
+    }
+
+    setLoading(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <p className="text-text-muted">Loading...</p>
+      </div>
+    );
+  }
 
   if (!photo) {
     return (
@@ -19,10 +74,10 @@ export default function PhotoDetailPage({ params }: { params: { id: string } }) 
     );
   }
 
-  const event = events.find((e) => e.id === photo.event_id);
   const inCart = items.some((item) => item.photo.id === photo.id);
 
   const handleAdd = () => {
+    if (isFull) return;
     addItem(photo);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
@@ -30,26 +85,20 @@ export default function PhotoDetailPage({ params }: { params: { id: string } }) 
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-      <Link href="/" className="text-sm text-text-muted transition-colors hover:text-text-secondary">
+      <Link
+        href="/"
+        className="text-sm text-text-muted transition-colors hover:text-text-secondary"
+      >
         ← Back
       </Link>
 
       <div className="mt-6 overflow-hidden rounded-xl border border-border bg-bg-card">
         <div className="relative aspect-[16/10] w-full">
-          <Image
+          <img
             src={photo.image_url_watermarked}
             alt={`${photo.color} ${photo.vehicle_type}`}
-            fill
-            className="object-cover"
-            sizes="(max-width: 1024px) 100vw, 960px"
-            priority
+            className="h-full w-full object-cover"
           />
-          {/* Simulated watermark overlay */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="rotate-[-25deg] font-display text-6xl tracking-[0.3em] text-white/10 sm:text-8xl">
-              THROTTLESHOTS
-            </span>
-          </div>
         </div>
 
         <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:justify-between">
@@ -60,26 +109,37 @@ export default function PhotoDetailPage({ params }: { params: { id: string } }) 
               </span>
               {photo.color && (
                 <span className="flex items-center gap-1.5 rounded-full bg-bg-elevated px-3 py-1 text-xs text-text-secondary">
-                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: photo.color.toLowerCase() }} />
+                  <div
+                    className="h-2 w-2 rounded-full"
+                    style={{
+                      backgroundColor: photo.color.toLowerCase(),
+                    }}
+                  />
                   {photo.color}
                 </span>
               )}
             </div>
-            {event && <p className="mt-2 text-sm text-text-muted">{event.name}</p>}
+            {event && (
+              <p className="mt-2 text-sm text-text-muted">
+                {event.name || "Event"}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="font-display text-3xl text-text-primary">${photo.price}</span>
+            <span className="font-display text-3xl text-text-primary">
+              ${photo.price}
+            </span>
             <button
               onClick={handleAdd}
-              disabled={inCart}
+              disabled={inCart || isFull}
               className={`rounded-lg px-6 py-3 text-sm font-semibold transition-all ${
-                inCart
+                inCart || isFull
                   ? "bg-bg-elevated text-text-muted cursor-default"
                   : "bg-accent text-white hover:bg-accent-hover active:scale-95"
               }`}
             >
-              {added ? "Added!" : inCart ? "In Cart" : "Add to Cart"}
+              {added ? "Added!" : inCart ? "In Cart" : isFull ? "Cart Full (10 max)" : "Add to Cart"}
             </button>
           </div>
         </div>

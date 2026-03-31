@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Providers } from "@/components/Providers";
 import { CartIconClient } from "@/components/CartIconClient";
 import "./globals.css";
@@ -33,22 +34,22 @@ export default function RootLayout({
           <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-bg/80 backdrop-blur-xl">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
               <div className="flex h-16 items-center justify-between">
-                <a href="/" className="flex items-center">
+                <Link href="/" className="flex items-center">
                   <span className="font-display text-2xl tracking-wider text-accent">
                     THROTTLE
                   </span>
                   <span className="font-display text-2xl tracking-wider text-text-primary">
                     SHOTS
                   </span>
-                </a>
+                </Link>
                 <div className="flex items-center gap-6">
                   <CartIconClient />
-                  <a
-                     href="/admin"
+                  <Link
+                    href="/admin"
                     className="rounded-md bg-bg-elevated px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
                   >
                     Admin
-                  </a>
+                  </Link>
                 </div>
               </div>
             </div>

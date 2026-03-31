@@ -199,9 +199,20 @@ export default function AdminPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
-      <h1 className="font-display text-4xl tracking-wider text-text-primary">
-        ADMIN
-      </h1>
+      <div className="flex items-center justify-between">
+        <h1 className="font-display text-4xl tracking-wider text-text-primary">
+          ADMIN
+        </h1>
+        <button
+          onClick={async () => {
+            await fetch("/api/admin-logout", { method: "POST" });
+            window.location.href = "/";
+          }}
+          className="rounded-lg border border-border px-4 py-2 text-xs text-text-muted transition-colors hover:border-red-500 hover:text-red-400"
+        >
+          Log Out
+        </button>
+      </div>
 
       {/* Create Event */}
       <section className="mt-10">

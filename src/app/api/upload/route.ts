@@ -18,7 +18,7 @@ async function buildWatermarkComposites(
     .resize(wmWidth, undefined, { fit: "inside" })
     .ensureAlpha()
     .composite([{
-      input: Buffer.from([0, 0, 0, Math.round(255 * 0.45)]),
+      input: Buffer.from([0, 0, 0, Math.round(255 * 0.40)]),
       raw: { width: 1, height: 1, channels: 4 },
       tile: true,
       blend: "dest-in",

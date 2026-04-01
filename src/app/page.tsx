@@ -31,6 +31,14 @@ const categoryImages: Record<string, string> = {
     "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&q=80",
   "street-shots":
     "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&q=80",
+  "sports":
+    "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=800&q=80",
+  "portraits":
+    "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800&q=80",
+  "concerts":
+    "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&q=80",
+  "events":
+    "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&q=80",
 };
 
 export default async function HomePage() {

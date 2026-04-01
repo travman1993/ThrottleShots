@@ -7,6 +7,7 @@ import { CartIconClient } from "@/components/CartIconClient";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://throttleshotsmedia.com"),
   title: "ThrottleShots — Automotive Event Photography",
   description:
     "Find and purchase photos of your vehicle from Tail of the Dragon, car meets, bike nights, track days, and more.",

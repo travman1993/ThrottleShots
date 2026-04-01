@@ -34,6 +34,7 @@ interface CalendarProps {
   eventDates: Map<string, EventRow>;
   selectedDate: string | null;
   onSelectDate: (date: string) => void;
+  minDate: Date;
 }
 
 export default function CategoryPage({
@@ -124,8 +125,18 @@ export default function CategoryPage({
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <p className="text-text-muted">Loading...</p>
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-pulse">
+        <div className="h-4 w-16 rounded bg-bg-elevated" />
+        <div className="mt-6 h-10 w-64 rounded bg-bg-elevated" />
+        <div className="mt-2 h-4 w-48 rounded bg-bg-elevated" />
+        <div className="mt-12 h-6 w-32 rounded bg-bg-elevated" />
+        <div className="mt-6 h-72 rounded-xl bg-bg-elevated" />
+        <div className="mt-10 h-6 w-32 rounded bg-bg-elevated" />
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-28 rounded-xl bg-bg-elevated" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -143,6 +154,12 @@ export default function CategoryPage({
   );
 
   const selectedEvent = selectedDate ? eventDates.get(selectedDate) : null;
+
+  // Allow calendar to navigate back to the oldest event date
+  const minDate =
+    events.length > 0
+      ? new Date(events[events.length - 1].date + "T12:00:00")
+      : new Date();
 
   const filtered = photos.filter((p) => {
     const matchVehicle =
@@ -178,6 +195,7 @@ export default function CategoryPage({
           setFilters({ vehicleType: "All", color: "All" });
         }}
         photoCounts={photoCounts}
+        minDate={minDate}
       />
 
       {selectedEvent && (
@@ -265,15 +283,14 @@ function Calendar({
   selectedDate,
   onSelectDate,
   photoCounts,
+  minDate,
 }: CalendarProps & { photoCounts: Record<string, number> }) {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
 
-  const oldestDate = new Date(today);
-  oldestDate.setDate(oldestDate.getDate() - 60);
-  const oldestMonth = oldestDate.getMonth();
-  const oldestYear = oldestDate.getFullYear();
+  const oldestMonth = minDate.getMonth();
+  const oldestYear = minDate.getFullYear();
 
   const canGoBack =
     currentYear > oldestYear ||

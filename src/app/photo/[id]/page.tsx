@@ -60,8 +60,21 @@ export default function PhotoDetailPage({
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <p className="text-text-muted">Loading...</p>
+      <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 animate-pulse">
+        <div className="h-4 w-16 rounded bg-bg-elevated" />
+        <div className="mt-6 overflow-hidden rounded-xl border border-border bg-bg-card">
+          <div className="aspect-[16/10] w-full bg-bg-elevated" />
+          <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-2">
+              <div className="h-6 w-20 rounded-full bg-bg-elevated" />
+              <div className="h-6 w-16 rounded-full bg-bg-elevated" />
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="h-8 w-16 rounded bg-bg-elevated" />
+              <div className="h-11 w-32 rounded-lg bg-bg-elevated" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

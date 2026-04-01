@@ -1,6 +1,3 @@
-"use client";
-
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
@@ -20,57 +17,57 @@ interface EventWithCategory {
   categories: {
     name: string;
     slug: string;
-  };
+  } | null;
 }
 
-export default function HomePage() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [recentEvents, setRecentEvents] = useState<EventWithCategory[]>([]);
-  const [photoCounts, setPhotoCounts] = useState<Record<string, number>>({});
+const categoryImages: Record<string, string> = {
+  "tail-of-the-dragon":
+    "https://images.unsplash.com/photo-1544636331-e26879cd4d9b?w=800&q=80",
+  "car-meets":
+    "https://images.unsplash.com/photo-1583121274602-3e2820c69888?w=800&q=80",
+  "bike-nights":
+    "https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=800&q=80",
+  "track-days":
+    "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&q=80",
+  "street-shots":
+    "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&q=80",
+};
 
-  useEffect(() => {
-    loadData();
-  }, []);
+export default async function HomePage() {
+  const { data: cats } = await supabase
+    .from("categories")
+    .select("*")
+    .order("name");
 
-  const loadData = async () => {
-    const { data: cats } = await supabase
-      .from("categories")
-      .select("*")
-      .order("name");
-    if (cats) setCategories(cats);
+  const categories: Category[] = cats ?? [];
 
-    const { data: evts } = await supabase
-      .from("events")
-      .select("*, categories(name, slug)")
-      .order("date", { ascending: false })
-      .limit(4);
-    if (evts) setRecentEvents(evts as unknown as EventWithCategory[]);
+  const { data: evts } = await supabase
+    .from("events")
+    .select("*, categories(name, slug)")
+    .order("date", { ascending: false })
+    .limit(4);
 
-    // Get photo counts per event
+  const recentEvents: EventWithCategory[] = (evts ?? []).filter(
+    (e): e is EventWithCategory & { categories: { name: string; slug: string } } =>
+      e.categories !== null
+  );
+
+  // Count photos only for the 4 fetched events
+  const eventIds = recentEvents.map((e) => e.id);
+  const photoCounts: Record<string, number> = {};
+
+  if (eventIds.length > 0) {
     const { data: counts } = await supabase
       .from("photos")
-      .select("event_id");
-    if (counts) {
-      const map: Record<string, number> = {};
-      counts.forEach((row: { event_id: string }) => {
-        map[row.event_id] = (map[row.event_id] || 0) + 1;
-      });
-      setPhotoCounts(map);
-    }
-  };
+      .select("event_id")
+      .in("event_id", eventIds);
 
-  const categoryImages: Record<string, string> = {
-    "tail-of-the-dragon":
-      "https://images.unsplash.com/photo-1544636331-e26879cd4d9b?w=800&q=80",
-    "car-meets":
-      "https://images.unsplash.com/photo-1583121274602-3e2820c69888?w=800&q=80",
-    "bike-nights":
-      "https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=800&q=80",
-    "track-days":
-      "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800&q=80",
-    "street-shots":
-      "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&q=80",
-  };
+    if (counts) {
+      counts.forEach((row: { event_id: string }) => {
+        photoCounts[row.event_id] = (photoCounts[row.event_id] || 0) + 1;
+      });
+    }
+  }
 
   return (
     <div>
@@ -134,12 +131,12 @@ export default function HomePage() {
           {recentEvents.map((event) => (
             <Link
               key={event.id}
-              href={`/category/${event.categories.slug}`}
+              href={`/category/${event.categories!.slug}`}
               className="group rounded-xl border border-border bg-bg-card p-5 transition-all hover:border-border-hover hover:bg-bg-elevated"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-accent">
-                  {event.categories.name}
+                  {event.categories!.name}
                 </span>
                 <span className="text-xs text-text-muted">
                   {new Date(event.date + "T12:00:00").toLocaleDateString(

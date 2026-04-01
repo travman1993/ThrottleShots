@@ -41,8 +41,9 @@ export default function AdminPage() {
   const [photoColor, setPhotoColor] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadQueue, setUploadQueue] = useState<File[]>([]);
+  const [uploadQueue, setUploadQueue] = useState<{ file: File; previewUrl: string }[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadTotal, setUploadTotal] = useState(0);
 
   // Manage photos
   const [manageEvent, setManageEvent] = useState("");
@@ -113,21 +114,27 @@ export default function AdminPage() {
 
   const handleFiles = useCallback((files: File[]) => {
     const imageFiles = files.filter((f) => f.type.startsWith("image/"));
-    setUploadQueue((prev) => [...prev, ...imageFiles]);
+    const newItems = imageFiles.map((f) => ({ file: f, previewUrl: URL.createObjectURL(f) }));
+    setUploadQueue((prev) => [...prev, ...newItems]);
   }, []);
 
   const removeFromQueue = (index: number) => {
-    setUploadQueue((prev) => prev.filter((_, i) => i !== index));
+    setUploadQueue((prev) => {
+      URL.revokeObjectURL(prev[index].previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const uploadAll = async () => {
     if (!selectedEvent || uploadQueue.length === 0) return;
 
+    const total = uploadQueue.length;
     setUploading(true);
     setUploadProgress(0);
+    setUploadTotal(total);
 
-    for (let i = 0; i < uploadQueue.length; i++) {
-      const file = uploadQueue[i];
+    for (let i = 0; i < total; i++) {
+      const { file } = uploadQueue[i];
       const formData = new FormData();
       formData.append("file", file);
       formData.append("event_id", selectedEvent);
@@ -152,7 +159,10 @@ export default function AdminPage() {
       setUploadProgress(i + 1);
     }
 
-    setUploadQueue([]);
+    setUploadQueue((prev) => {
+      prev.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+      return [];
+    });
     setUploading(false);
 
     // Refresh photos if viewing the same event
@@ -314,13 +324,21 @@ export default function AdminPage() {
             <label className="mb-2 block text-xs text-text-muted">
               Color (optional)
             </label>
-            <input
-              type="text"
+            <select
               value={photoColor}
               onChange={(e) => setPhotoColor(e.target.value)}
-              placeholder="e.g. Red"
-              className="w-full rounded-lg border border-border bg-bg-elevated px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent"
-            />
+              className="w-full rounded-lg border border-border bg-bg-elevated px-4 py-2.5 text-sm text-text-primary outline-none focus:border-accent"
+            >
+              <option value="">None</option>
+              <option value="Red">Red</option>
+              <option value="Blue">Blue</option>
+              <option value="Black">Black</option>
+              <option value="White">White</option>
+              <option value="Silver">Silver</option>
+              <option value="Yellow">Yellow</option>
+              <option value="Green">Green</option>
+              <option value="Orange">Orange</option>
+            </select>
           </div>
         </div>
 
@@ -392,19 +410,19 @@ export default function AdminPage() {
                 }`}
               >
                 {uploading
-                  ? `Uploading ${uploadProgress}/${uploadQueue.length}...`
+                  ? `Uploading ${uploadProgress}/${uploadTotal}...`
                   : "Upload All"}
               </button>
             </div>
             <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">
-              {uploadQueue.map((file, i) => (
+              {uploadQueue.map((item, i) => (
                 <div
                   key={i}
                   className="group relative aspect-square overflow-hidden rounded-lg bg-bg-elevated"
                 >
                   <img
-                    src={URL.createObjectURL(file)}
-                    alt={file.name}
+                    src={item.previewUrl}
+                    alt={item.file.name}
                     className="h-full w-full object-cover"
                   />
                   <button
@@ -428,7 +446,7 @@ export default function AdminPage() {
               <div
                 className="h-full bg-accent transition-all duration-300"
                 style={{
-                  width: `${(uploadProgress / uploadQueue.length) * 100}%`,
+                  width: `${uploadTotal > 0 ? (uploadProgress / uploadTotal) * 100 : 0}%`,
                 }}
               />
             </div>

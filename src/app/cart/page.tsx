@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
-import { PRICING, calculateCartTotal } from "@/data/mock";
+import { PRICING, calculateCartTotal } from "@/lib/pricing";
 
 export default function CartPage() {
   const { items, removeItem, clearCart } = useCart();
@@ -87,9 +87,16 @@ export default function CartPage() {
                 <span className="font-display text-3xl text-text-primary">${total.toFixed(2)}</span>
               </div>
             </div>
-            <button className="mt-6 w-full rounded-lg bg-accent py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-hover active:scale-[0.98]">
-              Checkout with Stripe
+            <button
+              disabled
+              className="mt-6 w-full rounded-lg bg-bg-elevated py-3 text-sm font-semibold text-text-muted cursor-not-allowed"
+              title="Payment coming soon"
+            >
+              Checkout — Coming Soon
             </button>
+            <p className="mt-2 text-center text-xs text-text-muted">
+              Payment integration in progress. Contact us to arrange your purchase.
+            </p>
             <button
               onClick={clearCart}
               className="mt-3 w-full text-center text-xs text-text-muted transition-colors hover:text-text-secondary"

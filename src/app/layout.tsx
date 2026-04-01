@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
+import { cookies } from "next/headers";
 import { Providers } from "@/components/Providers";
 import { CartIconClient } from "@/components/CartIconClient";
 import "./globals.css";
@@ -8,6 +10,32 @@ export const metadata: Metadata = {
   title: "ThrottleShots — Automotive Event Photography",
   description:
     "Find and purchase photos of your vehicle from Tail of the Dragon, car meets, bike nights, track days, and more.",
+  openGraph: {
+    title: "ThrottleShots — Automotive Event Photography",
+    description:
+      "Find and purchase photos of your vehicle from Tail of the Dragon, car meets, bike nights, track days, and more.",
+    url: "https://throttleshots.com",
+    siteName: "ThrottleShots",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "ThrottleShots — Automotive Event Photography",
+      },
+    ],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ThrottleShots — Automotive Event Photography",
+    description:
+      "Find and purchase photos of your vehicle from Tail of the Dragon, car meets, bike nights, track days, and more.",
+    images: ["/og-image.png"],
+  },
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -15,6 +43,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const cookieStore = cookies();
+  const isAdmin = cookieStore.get("admin_auth")?.value === "true";
+
   return (
     <html lang="en">
       <head>
@@ -35,21 +66,25 @@ export default function RootLayout({
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
               <div className="flex h-16 items-center justify-between">
                 <Link href="/" className="flex items-center">
-                  <span className="font-display text-2xl tracking-wider text-accent">
-                    THROTTLE
-                  </span>
-                  <span className="font-display text-2xl tracking-wider text-text-primary">
-                    SHOTS
-                  </span>
+                  <Image
+                    src="/logo-horizontal.png"
+                    alt="ThrottleShots"
+                    width={180}
+                    height={40}
+                    className="h-8 w-auto object-contain"
+                    priority
+                  />
                 </Link>
                 <div className="flex items-center gap-6">
                   <CartIconClient />
-                  <Link
-                    href="/admin"
-                    className="rounded-md bg-bg-elevated px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
-                  >
-                    Admin
-                  </Link>
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      className="rounded-md bg-bg-elevated px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+                    >
+                      Admin
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>

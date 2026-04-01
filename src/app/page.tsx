@@ -202,6 +202,36 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Book a Shoot CTA */}
+      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+        <div className="relative overflow-hidden rounded-2xl border border-accent/20 bg-bg-card">
+          <div className="absolute inset-0 opacity-10">
+            <img
+              src="https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=1400&q=60"
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <div className="relative z-10 px-8 py-12 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-display text-3xl tracking-wider text-text-primary sm:text-4xl">
+                WANT YOUR OWN SHOOT?
+              </h2>
+              <p className="mt-2 max-w-md text-text-secondary">
+                Private sessions, dedicated event coverage, track days, and
+                more. Let&apos;s make it happen.
+              </p>
+            </div>
+            <Link
+              href="/book"
+              className="mt-6 inline-block flex-shrink-0 rounded-lg bg-accent px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-hover sm:mt-0 sm:ml-8"
+            >
+              Book a Session →
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Email capture */}
       <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
         <div className="rounded-2xl border border-border bg-bg-card px-8 py-10 text-center">

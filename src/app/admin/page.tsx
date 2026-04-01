@@ -32,6 +32,22 @@ export default function AdminPage() {
   // Stats
   const [totalPhotos, setTotalPhotos] = useState<number>(0);
 
+  // Follow up / bookings
+  interface BookingRow {
+    id: string;
+    name: string;
+    email: string;
+    phone: string | null;
+    shoot_type: string;
+    date: string | null;
+    location: string | null;
+    message: string | null;
+    status: string;
+    created_at: string;
+  }
+  const [bookings, setBookings] = useState<BookingRow[]>([]);
+  const [updatingBooking, setUpdatingBooking] = useState<string | null>(null);
+
   // Event form
   const [eventCategory, setEventCategory] = useState("");
   const [eventDate, setEventDate] = useState("");
@@ -84,6 +100,7 @@ export default function AdminPage() {
     loadCategories();
     loadEvents();
     loadStats();
+    loadBookings();
   }, []);
 
   useEffect(() => {
@@ -100,6 +117,28 @@ export default function AdminPage() {
       setEventPhotos([]);
     }
   }, [manageEvent]);
+
+  const loadBookings = async () => {
+    const { data } = await supabase
+      .from("bookings")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (data) setBookings(data);
+  };
+
+  const updateBookingStatus = async (id: string, status: string) => {
+    setUpdatingBooking(id);
+    await supabase.from("bookings").update({ status }).eq("id", id);
+    setBookings((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, status } : b))
+    );
+    setUpdatingBooking(null);
+  };
+
+  const deleteBooking = async (id: string) => {
+    await supabase.from("bookings").delete().eq("id", id);
+    setBookings((prev) => prev.filter((b) => b.id !== id));
+  };
 
   const loadStats = async () => {
     const { count } = await supabase
@@ -361,6 +400,114 @@ export default function AdminPage() {
             </div>
           );
         })}
+      </section>
+
+      {/* Follow Up */}
+      <section className="mt-10">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-2xl tracking-wider text-text-secondary">FOLLOW UP</h2>
+          {bookings.filter((b) => b.status === "new").length > 0 && (
+            <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-white">
+              {bookings.filter((b) => b.status === "new").length} new
+            </span>
+          )}
+        </div>
+
+        {bookings.length === 0 ? (
+          <p className="mt-4 text-sm text-text-muted">No booking requests yet.</p>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {bookings.map((b) => {
+              const statusColors: Record<string, string> = {
+                new: "bg-accent/10 text-accent border-accent/30",
+                contacted: "bg-blue-500/10 text-blue-400 border-blue-500/30",
+                booked: "bg-green-500/10 text-green-400 border-green-500/30",
+                closed: "bg-bg-elevated text-text-muted border-border",
+              };
+              const statusLabel: Record<string, string> = {
+                new: "New",
+                contacted: "Contacted",
+                booked: "Booked",
+                closed: "Closed",
+              };
+              return (
+                <div
+                  key={b.id}
+                  className="rounded-xl border border-border bg-bg-card p-5"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <p className="font-display text-lg tracking-wide text-text-primary">
+                          {b.name}
+                        </p>
+                        <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusColors[b.status] ?? statusColors.new}`}>
+                          {statusLabel[b.status] ?? b.status}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-secondary">
+                        <a href={`mailto:${b.email}`} className="text-accent hover:text-accent-hover">
+                          {b.email}
+                        </a>
+                        {b.phone && <span>{b.phone}</span>}
+                      </div>
+                    </div>
+                    <p className="text-xs text-text-muted">
+                      {new Date(b.created_at).toLocaleDateString("en-US", {
+                        month: "short", day: "numeric", year: "numeric",
+                      })}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                    <span className="text-text-muted">
+                      Type: <span className="text-text-primary">{b.shoot_type}</span>
+                    </span>
+                    {b.date && (
+                      <span className="text-text-muted">
+                        Date: <span className="text-text-primary">{b.date}</span>
+                      </span>
+                    )}
+                    {b.location && (
+                      <span className="text-text-muted">
+                        Location: <span className="text-text-primary">{b.location}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {b.message && (
+                    <p className="mt-3 rounded-lg bg-bg-elevated px-4 py-3 text-sm text-text-secondary leading-relaxed">
+                      {b.message}
+                    </p>
+                  )}
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    {["new", "contacted", "booked", "closed"].map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => updateBookingStatus(b.id, s)}
+                        disabled={b.status === s || updatingBooking === b.id}
+                        className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          b.status === s
+                            ? statusColors[s]
+                            : "border-border text-text-muted hover:text-text-primary hover:border-border-hover"
+                        } disabled:opacity-50`}
+                      >
+                        {statusLabel[s]}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => deleteBooking(b.id)}
+                      className="ml-auto text-xs text-text-muted transition-colors hover:text-red-400"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* Create Event */}

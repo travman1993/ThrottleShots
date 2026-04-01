@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createAdminClient } from "@/lib/supabase-admin";
 
 function createWatermarkSvg(width: number, height: number): string {
   const fontSize = Math.floor(width / 10);
@@ -74,6 +69,7 @@ function createThumbnailWatermarkSvg(width: number, height: number): string {
 }
 
 export async function POST(req: NextRequest) {
+  const supabase = createAdminClient();
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File;

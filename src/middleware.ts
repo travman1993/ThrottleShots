@@ -4,7 +4,8 @@ export function middleware(req: NextRequest) {
   const isAdmin = req.nextUrl.pathname.startsWith("/admin");
   const isAdminApi = req.nextUrl.pathname.startsWith("/api/upload") ||
     req.nextUrl.pathname.startsWith("/api/photos") ||
-    req.nextUrl.pathname.startsWith("/api/cleanup");
+    req.nextUrl.pathname.startsWith("/api/cleanup") ||
+    req.nextUrl.pathname.startsWith("/api/events");
 
   if (isAdmin || isAdminApi) {
     const authCookie = req.cookies.get("admin_auth");
@@ -27,5 +28,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/upload/:path*", "/api/photos/:path*", "/api/cleanup/:path*"],
+  matcher: ["/admin/:path*", "/api/upload/:path*", "/api/photos/:path*", "/api/cleanup/:path*", "/api/events/:path*"],
 };

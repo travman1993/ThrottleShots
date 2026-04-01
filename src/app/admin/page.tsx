@@ -95,14 +95,20 @@ export default function AdminPage() {
       return;
     }
 
-    const { error } = await supabase.from("events").insert({
-      category_id: eventCategory,
-      date: eventDate,
-      name: eventName || null,
+    const res = await fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        category_id: eventCategory,
+        date: eventDate,
+        name: eventName || null,
+      }),
     });
 
-    if (error) {
-      setEventMsg("Error: " + error.message);
+    const data = await res.json();
+
+    if (!res.ok) {
+      setEventMsg("Error: " + data.error);
     } else {
       setEventMsg("Event created!");
       setEventCategory("");

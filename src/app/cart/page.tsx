@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import { PRICING, calculateCartTotal } from "@/lib/pricing";
@@ -8,6 +9,31 @@ import { PRICING, calculateCartTotal } from "@/lib/pricing";
 export default function CartPage() {
   const { items, removeItem, clearCart } = useCart();
   const total = calculateCartTotal(items.length);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
+
+  const handleCheckout = async () => {
+    if (items.length === 0) return;
+    setCheckingOut(true);
+    setCheckoutError("");
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photoIds: items.map((i) => i.photo.id) }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCheckoutError(data.error || "Checkout failed. Please try again.");
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      setCheckoutError("Something went wrong. Please try again.");
+    } finally {
+      setCheckingOut(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
@@ -87,16 +113,20 @@ export default function CartPage() {
                 <span className="font-display text-3xl text-text-primary">${total.toFixed(2)}</span>
               </div>
             </div>
+            {checkoutError && (
+              <p className="mt-4 text-center text-sm text-red-400">{checkoutError}</p>
+            )}
             <button
-              disabled
-              className="mt-6 w-full rounded-lg bg-bg-elevated py-3 text-sm font-semibold text-text-muted cursor-not-allowed"
-              title="Payment coming soon"
+              onClick={handleCheckout}
+              disabled={checkingOut}
+              className={`mt-6 w-full rounded-lg py-3 text-sm font-semibold transition-colors ${
+                checkingOut
+                  ? "bg-bg-elevated text-text-muted cursor-not-allowed"
+                  : "bg-accent text-white hover:bg-accent-hover"
+              }`}
             >
-              Checkout — Coming Soon
+              {checkingOut ? "Processing..." : "Checkout"}
             </button>
-            <p className="mt-2 text-center text-xs text-text-muted">
-              Payment integration in progress. Contact us to arrange your purchase.
-            </p>
             <button
               onClick={clearCart}
               className="mt-3 w-full text-center text-xs text-text-muted transition-colors hover:text-text-secondary"

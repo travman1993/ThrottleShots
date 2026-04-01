@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     title: "ThrottleShots — Automotive Event Photography",
     description:
       "Find and purchase photos of your vehicle from Tail of the Dragon, car meets, bike nights, track days, and more.",
-    url: "https://throttleshots.com",
+    url: "https://throttleshotsmedia.com",
     siteName: "ThrottleShots",
     images: [
       {

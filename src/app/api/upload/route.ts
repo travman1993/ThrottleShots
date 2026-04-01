@@ -17,7 +17,12 @@ async function buildWatermarkComposites(
   const resized = await sharp(wmBuffer)
     .resize(wmWidth, undefined, { fit: "inside" })
     .ensureAlpha()
-    .modulate({ brightness: 1 })
+    .composite([{
+      input: Buffer.from([0, 0, 0, Math.round(255 * 0.45)]),
+      raw: { width: 1, height: 1, channels: 4 },
+      tile: true,
+      blend: "dest-in",
+    }])
     .toBuffer();
 
   const meta = await sharp(resized).metadata();

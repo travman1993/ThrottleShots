@@ -3,69 +3,46 @@ import sharp from "sharp";
 import { createAdminClient } from "@/lib/supabase-admin";
 
 function createWatermarkSvg(width: number, height: number): string {
-  const fontSize = Math.floor(width / 10);
-  const rows = 5;
-  const spacing = height / (rows + 1);
+  const fontSize = Math.floor(Math.min(width, height) / 7);
+  const attrs = `text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="bold" fill="rgba(255,255,255,0.55)"`;
 
-  let texts = "";
-  for (let i = 1; i <= rows; i++) {
-    texts += `
-      <text
-        x="50%" y="${i * spacing}"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        transform="rotate(-30, ${width / 2}, ${i * spacing})"
-        class="wm"
-      >THROTTLESHOTS</text>
-    `;
-  }
+  const positions = [
+    { x: width * 0.5, y: height * 0.2 },
+    { x: width * 0.2, y: height * 0.4 },
+    { x: width * 0.8, y: height * 0.4 },
+    { x: width * 0.5, y: height * 0.6 },
+    { x: width * 0.2, y: height * 0.8 },
+    { x: width * 0.8, y: height * 0.8 },
+  ];
 
-  return `
-    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-      <style>
-        .wm {
-          fill: rgba(255, 255, 255, 0.60);
-          font-family: Arial, Helvetica, sans-serif;
-          font-size: ${fontSize}px;
-          font-weight: 900;
-          letter-spacing: 0.15em;
-        }
-      </style>
-      ${texts}
-    </svg>
-  `;
+  const texts = positions
+    .map(
+      ({ x, y }) =>
+        `<text x="${x}" y="${y}" ${attrs} transform="rotate(-30,${x},${y})">THROTTLESHOTS</text>`
+    )
+    .join("");
+
+  return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${texts}</svg>`;
 }
 
 function createThumbnailWatermarkSvg(width: number, height: number): string {
-  const fontSize = Math.floor(width / 6);
+  const fontSize = Math.floor(Math.min(width, height) / 5);
+  const attrs = `text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="bold" fill="rgba(255,255,255,0.60)"`;
 
-  return `
-    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-      <style>
-        .wm {
-          fill: rgba(255, 255, 255, 0.65);
-          font-family: Arial, Helvetica, sans-serif;
-          font-size: ${fontSize}px;
-          font-weight: 900;
-          letter-spacing: 0.1em;
-        }
-      </style>
-      <text
-        x="50%" y="40%"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        transform="rotate(-30, ${width / 2}, ${height * 0.4})"
-        class="wm"
-      >THROTTLE</text>
-      <text
-        x="50%" y="65%"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        transform="rotate(-30, ${width / 2}, ${height * 0.65})"
-        class="wm"
-      >SHOTS</text>
-    </svg>
-  `;
+  const positions = [
+    { x: width * 0.5, y: height * 0.25 },
+    { x: width * 0.5, y: height * 0.55 },
+    { x: width * 0.5, y: height * 0.8 },
+  ];
+
+  const texts = positions
+    .map(
+      ({ x, y }) =>
+        `<text x="${x}" y="${y}" ${attrs} transform="rotate(-30,${x},${y})">THROTTLESHOTS</text>`
+    )
+    .join("");
+
+  return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${texts}</svg>`;
 }
 
 export async function POST(req: NextRequest) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { requireAdmin } from "@/lib/admin-auth";
 import path from "path";
 import fs from "fs";
 
@@ -37,6 +38,9 @@ async function buildWatermarkComposites(
 }
 
 export async function POST(req: NextRequest) {
+  const authError = requireAdmin();
+  if (authError) return authError;
+
   const supabase = createAdminClient();
   try {
     const formData = await req.formData();

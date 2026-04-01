@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /admin
+Disallow: /cart
+Disallow: /success
+Disallow: /api/
+
+Allow: /
+
+Sitemap: https://throttleshotsmedia.com/sitemap.xml

@@ -24,25 +24,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 
+  const supabase = createAdminClient();
+
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const customerEmail = session.customer_details?.email;
     const photoIdsRaw = session.metadata?.photo_ids;
 
     if (!customerEmail || !photoIdsRaw) {
+      await supabase.from("webhook_failures").insert({
+        stripe_event_id: event.id,
+        event_type: event.type,
+        error: "Missing customer email or photo_ids in metadata",
+        payload: JSON.stringify(session),
+      });
       return NextResponse.json({ error: "Missing data" }, { status: 400 });
     }
 
     const photoIds = photoIdsRaw.split(",");
 
     // Look up photo records to get storage paths
-    const supabase = createAdminClient();
     const { data: photos, error } = await supabase
       .from("photos")
       .select("id, image_url_original")
       .in("id", photoIds);
 
     if (error || !photos || photos.length === 0) {
+      await supabase.from("webhook_failures").insert({
+        stripe_event_id: event.id,
+        event_type: event.type,
+        error: "Photos not found: " + (error?.message ?? "empty result"),
+        payload: JSON.stringify({ photo_ids: photoIds }),
+      });
       return NextResponse.json({ error: "Photos not found" }, { status: 500 });
     }
 
@@ -59,6 +72,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (signedUrls.length === 0) {
+      await supabase.from("webhook_failures").insert({
+        stripe_event_id: event.id,
+        event_type: event.type,
+        error: "Could not generate signed URLs",
+        payload: JSON.stringify({ photo_ids: photoIds }),
+      });
       return NextResponse.json(
         { error: "Could not generate download links" },
         { status: 500 }
@@ -69,7 +88,7 @@ export async function POST(req: NextRequest) {
       .map((s, i) => `<li style="margin-bottom:12px"><a href="${s.url}" style="color:#E85D04;font-weight:600">Download Photo ${i + 1}</a></li>`)
       .join("");
 
-    await resend.emails.send({
+    const { error: emailError } = await resend.emails.send({
       from: "ThrottleShots <noreply@throttleshotsmedia.com>",
       to: customerEmail,
       subject: "Your ThrottleShots photos are ready",
@@ -91,6 +110,15 @@ export async function POST(req: NextRequest) {
         </div>
       `,
     });
+
+    if (emailError) {
+      await supabase.from("webhook_failures").insert({
+        stripe_event_id: event.id,
+        event_type: event.type,
+        error: "Resend email failed: " + emailError.message,
+        payload: JSON.stringify({ customer_email: customerEmail }),
+      });
+    }
   }
 
   return NextResponse.json({ received: true });

@@ -1,7 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { requireAdmin } from "@/lib/admin-auth";
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  // Allow Vercel cron (Authorization: Bearer CRON_SECRET) or admin cookie
+  const authHeader = req.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+  const isCron = cronSecret && authHeader === `Bearer ${cronSecret}`;
+
+  if (!isCron) {
+    const authError = requireAdmin();
+    if (authError) return authError;
+  }
+
   const supabase = createAdminClient();
   try {
     // Find photos older than 60 days

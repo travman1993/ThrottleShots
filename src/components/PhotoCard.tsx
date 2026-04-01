@@ -24,8 +24,8 @@ export function PhotoCard({ photo }: { photo: Photo }) {
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           loading="lazy"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
           <span className="rounded-full bg-bg/80 backdrop-blur-sm px-2.5 py-1 text-xs font-medium text-text-primary capitalize">
             {photo.vehicle_type}
           </span>

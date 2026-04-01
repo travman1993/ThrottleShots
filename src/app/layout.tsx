@@ -4,6 +4,8 @@ import Image from "next/image";
 import { cookies } from "next/headers";
 import { Providers } from "@/components/Providers";
 import { CartIconClient } from "@/components/CartIconClient";
+import { Footer } from "@/components/Footer";
+import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -47,6 +49,8 @@ export default function RootLayout({
   const cookieStore = cookies();
   const isAdmin = cookieStore.get("admin_auth")?.value === "true";
 
+  const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+
   return (
     <html lang="en">
       <head>
@@ -62,6 +66,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased font-body">
+        {gaId && <GoogleAnalytics gaId={gaId} />}
         <Providers>
           <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-bg/80 backdrop-blur-xl">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -91,6 +96,7 @@ export default function RootLayout({
             </div>
           </nav>
           <main className="pt-16">{children}</main>
+          <Footer />
         </Providers>
       </body>
     </html>

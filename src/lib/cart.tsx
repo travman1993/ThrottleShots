@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 
 export const MAX_CART_ITEMS = 10;
+const STORAGE_KEY = "throttleshots_cart";
 
 interface Photo {
   id: string;
@@ -33,6 +34,27 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Load from localStorage after mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) setItems(parsed);
+      }
+    } catch {}
+    setHydrated(true);
+  }, []);
+
+  // Persist to localStorage whenever items change (after hydration)
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    } catch {}
+  }, [items, hydrated]);
 
   const addItem = useCallback((photo: Photo): boolean => {
     let added = false;
@@ -50,7 +72,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((prev) => prev.filter((item) => item.photo.id !== photoId));
   }, []);
 
-  const clearCart = useCallback(() => setItems([]), []);
+  const clearCart = useCallback(() => {
+    setItems([]);
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  }, []);
 
   const totalItems = items.length;
   const totalPrice = items.reduce((sum, item) => sum + item.photo.price, 0);

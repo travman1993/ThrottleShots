@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { NotifyForm } from "@/components/NotifyForm";
 
 interface Category {
   id: string;
@@ -77,6 +78,32 @@ export default async function HomePage() {
     }
   }
 
+  // Count photos per category for the category cards
+  const { data: allEventsData } = await supabase
+    .from("events")
+    .select("id, category_id");
+
+  const allEvts = allEventsData ?? [];
+  const allEventIds = allEvts.map((e: { id: string }) => e.id);
+  const categoryPhotoCounts: Record<string, number> = {};
+
+  if (allEventIds.length > 0) {
+    const { data: photoData } = await supabase
+      .from("photos")
+      .select("event_id")
+      .in("event_id", allEventIds);
+
+    const eventCatMap: Record<string, string> = {};
+    allEvts.forEach((e: { id: string; category_id: string }) => {
+      eventCatMap[e.id] = e.category_id;
+    });
+
+    (photoData ?? []).forEach((p: { event_id: string }) => {
+      const catId = eventCatMap[p.event_id];
+      if (catId) categoryPhotoCounts[catId] = (categoryPhotoCounts[catId] || 0) + 1;
+    });
+  }
+
   return (
     <div>
       {/* Hero */}
@@ -124,6 +151,11 @@ export default async function HomePage() {
                 <h3 className="font-display text-lg tracking-wider text-white">
                   {cat.name.toUpperCase()}
                 </h3>
+                {(categoryPhotoCounts[cat.id] ?? 0) > 0 && (
+                  <p className="mt-0.5 text-xs text-white/60">
+                    {categoryPhotoCounts[cat.id]} photos
+                  </p>
+                )}
               </div>
             </Link>
           ))}
@@ -167,6 +199,22 @@ export default async function HomePage() {
           {recentEvents.length === 0 && (
             <p className="text-text-muted">No events yet. Create one in Admin.</p>
           )}
+        </div>
+      </section>
+
+      {/* Email capture */}
+      <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
+        <div className="rounded-2xl border border-border bg-bg-card px-8 py-10 text-center">
+          <h2 className="font-display text-2xl tracking-wider text-text-primary sm:text-3xl">
+            NEVER MISS A NEW SHOOT
+          </h2>
+          <p className="mx-auto mt-3 max-w-md text-sm text-text-secondary">
+            Drop your email and we&apos;ll notify you when new event photos are
+            posted.
+          </p>
+          <div className="mx-auto mt-6 max-w-sm">
+            <NotifyForm />
+          </div>
         </div>
       </section>
     </div>

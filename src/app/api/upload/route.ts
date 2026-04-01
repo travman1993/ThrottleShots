@@ -167,6 +167,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Increment all-time upload counter (never decrements on delete)
+    await supabase.rpc("increment_photo_count");
+
     return NextResponse.json({ photo });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";

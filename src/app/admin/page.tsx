@@ -7,6 +7,7 @@ interface Category {
   id: string;
   name: string;
   slug: string;
+  description?: string;
 }
 
 interface EventRow {
@@ -31,6 +32,16 @@ export default function AdminPage() {
 
   // Stats
   const [totalPhotos, setTotalPhotos] = useState<number>(0);
+  const [allTimePhotos, setAllTimePhotos] = useState<number>(0);
+
+  // Categories management
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatDesc, setNewCatDesc] = useState("");
+  const [catMsg, setCatMsg] = useState("");
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [editCatName, setEditCatName] = useState("");
+  const [editCatDesc, setEditCatDesc] = useState("");
+  const [confirmDeleteCat, setConfirmDeleteCat] = useState<string | null>(null);
 
   // Follow up / bookings
   interface BookingRow {
@@ -118,6 +129,54 @@ export default function AdminPage() {
     }
   }, [manageEvent]);
 
+  const slugify = (str: string) =>
+    str.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+
+  const createCategory = async () => {
+    if (!newCatName) { setCatMsg("Name is required."); return; }
+    const slug = slugify(newCatName);
+    const res = await fetch("/api/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newCatName, slug, description: newCatDesc }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setCatMsg("Error: " + data.error);
+    } else {
+      setCatMsg("Category created!");
+      setNewCatName("");
+      setNewCatDesc("");
+      loadCategories();
+      setTimeout(() => setCatMsg(""), 2000);
+    }
+  };
+
+  const startEditCat = (cat: Category) => {
+    setEditingCatId(cat.id);
+    setEditCatName(cat.name);
+    setEditCatDesc((cat as Category & { description?: string }).description ?? "");
+  };
+
+  const saveCategory = async () => {
+    if (!editingCatId) return;
+    const res = await fetch(`/api/categories/${editingCatId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: editCatName, description: editCatDesc }),
+    });
+    if (res.ok) {
+      setEditingCatId(null);
+      loadCategories();
+    }
+  };
+
+  const deleteCategory = async (id: string) => {
+    await fetch(`/api/categories/${id}`, { method: "DELETE" });
+    setConfirmDeleteCat(null);
+    loadCategories();
+  };
+
   const loadBookings = async () => {
     const { data } = await supabase
       .from("bookings")
@@ -145,6 +204,13 @@ export default function AdminPage() {
       .from("photos")
       .select("*", { count: "exact", head: true });
     setTotalPhotos(count ?? 0);
+
+    const { data: statsRow } = await supabase
+      .from("site_stats")
+      .select("total_photos_uploaded")
+      .eq("id", 1)
+      .single();
+    setAllTimePhotos(statsRow?.total_photos_uploaded ?? 0);
   };
 
   const loadCategories = async () => {
@@ -389,6 +455,10 @@ export default function AdminPage() {
           <p className="text-xs tracking-wider text-text-muted">PHOTOS</p>
           <p className="mt-2 font-display text-4xl text-text-primary">{totalPhotos}</p>
         </div>
+        <div className="rounded-xl border border-accent/20 bg-bg-card p-5">
+          <p className="text-xs tracking-wider text-text-muted">ALL TIME UPLOADS</p>
+          <p className="mt-2 font-display text-4xl text-accent">{allTimePhotos}</p>
+        </div>
         {categories.map((cat) => {
           const count = events.filter((e) => e.category_id === cat.id).length;
           if (count === 0) return null;
@@ -400,6 +470,104 @@ export default function AdminPage() {
             </div>
           );
         })}
+      </section>
+
+      {/* Categories */}
+      <section className="mt-10">
+        <h2 className="font-display text-2xl tracking-wider text-text-secondary">CATEGORIES</h2>
+
+        {/* Existing categories */}
+        <div className="mt-4 space-y-2">
+          {categories.map((cat) => (
+            <div key={cat.id} className="rounded-xl border border-border bg-bg-card p-4">
+              {editingCatId === cat.id ? (
+                <div className="space-y-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-xs text-text-muted">Name</label>
+                      <input
+                        type="text"
+                        value={editCatName}
+                        onChange={(e) => setEditCatName(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary outline-none focus:border-accent"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-text-muted">Description</label>
+                      <input
+                        type="text"
+                        value={editCatDesc}
+                        onChange={(e) => setEditCatDesc(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary outline-none focus:border-accent"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={saveCategory} className="rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-white hover:bg-accent-hover">Save</button>
+                    <button onClick={() => setEditingCatId(null)} className="rounded-lg border border-border px-4 py-1.5 text-xs text-text-muted hover:text-text-secondary">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-display tracking-wide text-text-primary">{cat.name}</p>
+                    <p className="text-xs text-text-muted">/{cat.slug}{cat.description ? ` — ${cat.description}` : ""}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => startEditCat(cat)} className="text-xs text-text-muted transition-colors hover:text-accent">Edit</button>
+                    {confirmDeleteCat === cat.id ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-text-muted">Delete?</span>
+                        <button onClick={() => deleteCategory(cat.id)} className="rounded bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-700">Yes</button>
+                        <button onClick={() => setConfirmDeleteCat(null)} className="text-xs text-text-muted hover:text-text-secondary">No</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setConfirmDeleteCat(cat.id)} className="text-xs text-text-muted transition-colors hover:text-red-400">Delete</button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Add new category */}
+        <div className="mt-4 rounded-xl border border-dashed border-border bg-bg-card p-4">
+          <p className="mb-3 text-xs tracking-wider text-text-muted">ADD CATEGORY</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs text-text-muted">Name *</label>
+              <input
+                type="text"
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                placeholder="e.g. Drag Racing"
+                className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-text-muted">Description</label>
+              <input
+                type="text"
+                value={newCatDesc}
+                onChange={(e) => setNewCatDesc(e.target.value)}
+                placeholder="Short description"
+                className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent"
+              />
+            </div>
+          </div>
+          {newCatName && (
+            <p className="mt-2 text-xs text-text-muted">
+              Slug: <span className="text-text-secondary">{slugify(newCatName)}</span>
+            </p>
+          )}
+          <div className="mt-3 flex items-center gap-3">
+            <button onClick={createCategory} className="rounded-lg bg-accent px-5 py-2 text-xs font-semibold text-white hover:bg-accent-hover">
+              Add Category
+            </button>
+            {catMsg && <p className="text-xs text-text-secondary">{catMsg}</p>}
+          </div>
+        </div>
       </section>
 
       {/* Follow Up */}

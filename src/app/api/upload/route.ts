@@ -1,48 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { createAdminClient } from "@/lib/supabase-admin";
+import path from "path";
+import fs from "fs";
 
-function createWatermarkSvg(width: number, height: number): string {
-  const fontSize = Math.floor(Math.min(width, height) / 7);
-  const attrs = `text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="bold" fill="rgba(255,255,255,0.55)"`;
+async function buildWatermarkComposites(
+  imageWidth: number,
+  imageHeight: number,
+  wmSizeRatio: number,
+  positions: { x: number; y: number }[]
+) {
+  const wmPath = path.join(process.cwd(), "public", "watermark.png");
+  const wmBuffer = fs.readFileSync(wmPath);
 
-  const positions = [
-    { x: width * 0.5, y: height * 0.2 },
-    { x: width * 0.2, y: height * 0.4 },
-    { x: width * 0.8, y: height * 0.4 },
-    { x: width * 0.5, y: height * 0.6 },
-    { x: width * 0.2, y: height * 0.8 },
-    { x: width * 0.8, y: height * 0.8 },
-  ];
+  const wmWidth = Math.floor(imageWidth * wmSizeRatio);
+  const resized = await sharp(wmBuffer)
+    .resize(wmWidth, undefined, { fit: "inside" })
+    .ensureAlpha()
+    .modulate({ brightness: 1 })
+    .toBuffer();
 
-  const texts = positions
-    .map(
-      ({ x, y }) =>
-        `<text x="${x}" y="${y}" ${attrs} transform="rotate(-30,${x},${y})">THROTTLESHOTS</text>`
-    )
-    .join("");
+  const meta = await sharp(resized).metadata();
+  const wmH = meta.height ?? Math.floor(wmWidth * 0.3);
 
-  return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${texts}</svg>`;
-}
-
-function createThumbnailWatermarkSvg(width: number, height: number): string {
-  const fontSize = Math.floor(Math.min(width, height) / 5);
-  const attrs = `text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="bold" fill="rgba(255,255,255,0.60)"`;
-
-  const positions = [
-    { x: width * 0.5, y: height * 0.25 },
-    { x: width * 0.5, y: height * 0.55 },
-    { x: width * 0.5, y: height * 0.8 },
-  ];
-
-  const texts = positions
-    .map(
-      ({ x, y }) =>
-        `<text x="${x}" y="${y}" ${attrs} transform="rotate(-30,${x},${y})">THROTTLESHOTS</text>`
-    )
-    .join("");
-
-  return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${texts}</svg>`;
+  return positions.map(({ x, y }) => ({
+    input: resized,
+    left: Math.max(0, Math.min(Math.round(x - wmWidth / 2), imageWidth - wmWidth)),
+    top: Math.max(0, Math.min(Math.round(y - wmH / 2), imageHeight - wmH)),
+    blend: "over" as const,
+  }));
 }
 
 export async function POST(req: NextRequest) {
@@ -71,16 +57,15 @@ export async function POST(req: NextRequest) {
     const width = metadata.width || 1200;
     const height = metadata.height || 800;
 
-    // 1. Generate watermarked version (heavy watermark)
-    const watermarkSvg = createWatermarkSvg(width, height);
+    // 1. Generate watermarked version (tiled watermark image)
+    const wmComposites = await buildWatermarkComposites(width, height, 0.4, [
+      { x: width * 0.5, y: height * 0.2 },
+      { x: width * 0.2, y: height * 0.5 },
+      { x: width * 0.8, y: height * 0.5 },
+      { x: width * 0.5, y: height * 0.8 },
+    ]);
     const watermarked = await sharp(buffer)
-      .composite([
-        {
-          input: Buffer.from(watermarkSvg),
-          top: 0,
-          left: 0,
-        },
-      ])
+      .composite(wmComposites)
       .jpeg({ quality: 85 })
       .toBuffer();
 
@@ -92,18 +77,12 @@ export async function POST(req: NextRequest) {
       .jpeg({ quality: 75 })
       .toBuffer();
 
-    const thumbWatermarkSvg = createThumbnailWatermarkSvg(
-      thumbWidth,
-      thumbHeight
-    );
+    const thumbComposites = await buildWatermarkComposites(thumbWidth, thumbHeight, 0.6, [
+      { x: thumbWidth * 0.5, y: thumbHeight * 0.35 },
+      { x: thumbWidth * 0.5, y: thumbHeight * 0.75 },
+    ]);
     const thumbnail = await sharp(thumbBase)
-      .composite([
-        {
-          input: Buffer.from(thumbWatermarkSvg),
-          top: 0,
-          left: 0,
-        },
-      ])
+      .composite(thumbComposites)
       .jpeg({ quality: 75 })
       .toBuffer();
 

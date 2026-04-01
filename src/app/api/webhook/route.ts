@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
       .join("");
 
     await resend.emails.send({
-      from: "ThrottleShots <hello@throttleshotsmedia.com>",
+      from: "ThrottleShots <noreply@throttleshotsmedia.com>",
       to: customerEmail,
       subject: "Your ThrottleShots photos are ready",
       html: `

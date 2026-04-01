@@ -24,7 +24,7 @@ function createWatermarkSvg(width: number, height: number): string {
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
       <style>
         .wm {
-          fill: rgba(255, 255, 255, 0.35);
+          fill: rgba(255, 255, 255, 0.60);
           font-family: Arial, Helvetica, sans-serif;
           font-size: ${fontSize}px;
           font-weight: 900;
@@ -43,7 +43,7 @@ function createThumbnailWatermarkSvg(width: number, height: number): string {
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
       <style>
         .wm {
-          fill: rgba(255, 255, 255, 0.4);
+          fill: rgba(255, 255, 255, 0.65);
           font-family: Arial, Helvetica, sans-serif;
           font-size: ${fontSize}px;
           font-weight: 900;

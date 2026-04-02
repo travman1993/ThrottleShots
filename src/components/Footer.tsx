@@ -5,7 +5,7 @@ export function Footer() {
   return (
     <footer className="border-t border-border bg-bg mt-auto">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid gap-10 sm:grid-cols-3">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
           <div>
             <Image
@@ -50,6 +50,31 @@ export function Footer() {
                 >
                   hello@throttleshotsmedia.com
                 </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* Legal */}
+          <div>
+            <p className="text-xs font-semibold tracking-wider text-text-secondary uppercase">
+              Legal
+            </p>
+            <ul className="mt-4 space-y-3">
+              <li>
+                <Link
+                  href="/privacy"
+                  className="text-sm text-text-muted transition-colors hover:text-text-primary"
+                >
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/terms"
+                  className="text-sm text-text-muted transition-colors hover:text-text-primary"
+                >
+                  Terms of Service
+                </Link>
               </li>
             </ul>
           </div>

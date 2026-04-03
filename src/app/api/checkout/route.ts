@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
       cancel_url: `${siteUrl}/cart`,
       metadata: {
         photo_ids: photoIds.join(","),
+        business: "throttleshots",
       },
     });
 

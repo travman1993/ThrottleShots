@@ -34,14 +34,8 @@ export default function AdminPage() {
   const [totalPhotos, setTotalPhotos] = useState<number>(0);
   const [allTimePhotos, setAllTimePhotos] = useState<number>(0);
 
-  // Categories management
-  const [newCatName, setNewCatName] = useState("");
-  const [newCatDesc, setNewCatDesc] = useState("");
-  const [catMsg, setCatMsg] = useState("");
-  const [editingCatId, setEditingCatId] = useState<string | null>(null);
-  const [editCatName, setEditCatName] = useState("");
-  const [editCatDesc, setEditCatDesc] = useState("");
-  const [confirmDeleteCat, setConfirmDeleteCat] = useState<string | null>(null);
+  // Upload category filter
+  const [uploadCategory, setUploadCategory] = useState("");
 
   // Follow up / bookings
   interface BookingRow {
@@ -67,7 +61,7 @@ export default function AdminPage() {
 
   // Upload form
   const [selectedEvent, setSelectedEvent] = useState("");
-  const [vehicleType, setVehicleType] = useState("car");
+  const [vehicleType, setVehicleType] = useState("none");
   const [photoColor, setPhotoColor] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -96,7 +90,7 @@ export default function AdminPage() {
 
   // Edit photo
   const [editingPhoto, setEditingPhoto] = useState<string | null>(null);
-  const [editPhotoVehicle, setEditPhotoVehicle] = useState("car");
+  const [editPhotoVehicle, setEditPhotoVehicle] = useState("none");
   const [editPhotoColor, setEditPhotoColor] = useState("");
 
   // Confirm delete
@@ -128,54 +122,6 @@ export default function AdminPage() {
       setEventPhotos([]);
     }
   }, [manageEvent]);
-
-  const slugify = (str: string) =>
-    str.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-
-  const createCategory = async () => {
-    if (!newCatName) { setCatMsg("Name is required."); return; }
-    const slug = slugify(newCatName);
-    const res = await fetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newCatName, slug, description: newCatDesc }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setCatMsg("Error: " + data.error);
-    } else {
-      setCatMsg("Category created!");
-      setNewCatName("");
-      setNewCatDesc("");
-      loadCategories();
-      setTimeout(() => setCatMsg(""), 2000);
-    }
-  };
-
-  const startEditCat = (cat: Category) => {
-    setEditingCatId(cat.id);
-    setEditCatName(cat.name);
-    setEditCatDesc((cat as Category & { description?: string }).description ?? "");
-  };
-
-  const saveCategory = async () => {
-    if (!editingCatId) return;
-    const res = await fetch(`/api/categories/${editingCatId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: editCatName, description: editCatDesc }),
-    });
-    if (res.ok) {
-      setEditingCatId(null);
-      loadCategories();
-    }
-  };
-
-  const deleteCategory = async (id: string) => {
-    await fetch(`/api/categories/${id}`, { method: "DELETE" });
-    setConfirmDeleteCat(null);
-    loadCategories();
-  };
 
   const loadBookings = async () => {
     const { data } = await supabase
@@ -363,7 +309,7 @@ export default function AdminPage() {
   };
 
   const uploadAll = async () => {
-    if (!selectedEvent || uploadQueue.length === 0) return;
+    if (!uploadCategory || uploadQueue.length === 0) return;
     const total = uploadQueue.length;
     setUploading(true);
     setUploadProgress(0);
@@ -371,13 +317,43 @@ export default function AdminPage() {
     setUploadErrors([]);
     setUploadDone(false);
 
+    // If no specific event selected, find or create a same-day event for this category
+    let eventId = selectedEvent;
+    if (!eventId) {
+      const today = new Date().toISOString().split("T")[0];
+      const { data: existing } = await supabase
+        .from("events")
+        .select("id")
+        .eq("category_id", uploadCategory)
+        .eq("date", today)
+        .maybeSingle();
+      if (existing) {
+        eventId = existing.id;
+      } else {
+        const res = await fetch("/api/events", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category_id: uploadCategory, date: today, name: null }),
+        });
+        const data = await res.json();
+        if (!data.event) {
+          setUploading(false);
+          setUploadErrors(["Failed to create event for today's date."]);
+          setUploadDone(true);
+          return;
+        }
+        eventId = data.event.id;
+        loadEvents();
+      }
+    }
+
     const errors: string[] = [];
 
     for (let i = 0; i < uploadQueue.length; i++) {
       const { file } = uploadQueue[i];
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("event_id", selectedEvent);
+      formData.append("event_id", eventId);
       formData.append("vehicle_type", vehicleType);
       formData.append("color", photoColor);
       try {
@@ -470,104 +446,6 @@ export default function AdminPage() {
             </div>
           );
         })}
-      </section>
-
-      {/* Categories */}
-      <section className="mt-10">
-        <h2 className="font-display text-2xl tracking-wider text-text-secondary">CATEGORIES</h2>
-
-        {/* Existing categories */}
-        <div className="mt-4 space-y-2">
-          {categories.map((cat) => (
-            <div key={cat.id} className="rounded-xl border border-border bg-bg-card p-4">
-              {editingCatId === cat.id ? (
-                <div className="space-y-3">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-1 block text-xs text-text-muted">Name</label>
-                      <input
-                        type="text"
-                        value={editCatName}
-                        onChange={(e) => setEditCatName(e.target.value)}
-                        className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary outline-none focus:border-accent"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs text-text-muted">Description</label>
-                      <input
-                        type="text"
-                        value={editCatDesc}
-                        onChange={(e) => setEditCatDesc(e.target.value)}
-                        className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary outline-none focus:border-accent"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={saveCategory} className="rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-white hover:bg-accent-hover">Save</button>
-                    <button onClick={() => setEditingCatId(null)} className="rounded-lg border border-border px-4 py-1.5 text-xs text-text-muted hover:text-text-secondary">Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-display tracking-wide text-text-primary">{cat.name}</p>
-                    <p className="text-xs text-text-muted">/{cat.slug}{cat.description ? ` — ${cat.description}` : ""}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => startEditCat(cat)} className="text-xs text-text-muted transition-colors hover:text-accent">Edit</button>
-                    {confirmDeleteCat === cat.id ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-text-muted">Delete?</span>
-                        <button onClick={() => deleteCategory(cat.id)} className="rounded bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-700">Yes</button>
-                        <button onClick={() => setConfirmDeleteCat(null)} className="text-xs text-text-muted hover:text-text-secondary">No</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => setConfirmDeleteCat(cat.id)} className="text-xs text-text-muted transition-colors hover:text-red-400">Delete</button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Add new category */}
-        <div className="mt-4 rounded-xl border border-dashed border-border bg-bg-card p-4">
-          <p className="mb-3 text-xs tracking-wider text-text-muted">ADD CATEGORY</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-xs text-text-muted">Name *</label>
-              <input
-                type="text"
-                value={newCatName}
-                onChange={(e) => setNewCatName(e.target.value)}
-                placeholder="e.g. Drag Racing"
-                className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-text-muted">Description</label>
-              <input
-                type="text"
-                value={newCatDesc}
-                onChange={(e) => setNewCatDesc(e.target.value)}
-                placeholder="Short description"
-                className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent"
-              />
-            </div>
-          </div>
-          {newCatName && (
-            <p className="mt-2 text-xs text-text-muted">
-              Slug: <span className="text-text-secondary">{slugify(newCatName)}</span>
-            </p>
-          )}
-          <div className="mt-3 flex items-center gap-3">
-            <button onClick={createCategory} className="rounded-lg bg-accent px-5 py-2 text-xs font-semibold text-white hover:bg-accent-hover">
-              Add Category
-            </button>
-            {catMsg && <p className="text-xs text-text-secondary">{catMsg}</p>}
-          </div>
-        </div>
       </section>
 
       {/* Follow Up */}
@@ -727,23 +605,36 @@ export default function AdminPage() {
       {/* Upload Photos */}
       <section className="mt-16">
         <h2 className="font-display text-2xl tracking-wider text-text-secondary">UPLOAD PHOTOS</h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <label className="mb-2 block text-xs text-text-muted">Event</label>
+            <label className="mb-2 block text-xs text-text-muted">Category *</label>
+            <select
+              value={uploadCategory}
+              onChange={(e) => { setUploadCategory(e.target.value); setSelectedEvent(""); }}
+              className="w-full rounded-lg border border-border bg-bg-elevated px-4 py-2.5 text-sm text-text-primary outline-none focus:border-accent"
+            >
+              <option value="">Select category...</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-2 block text-xs text-text-muted">Event (optional)</label>
             <select
               value={selectedEvent}
               onChange={(e) => setSelectedEvent(e.target.value)}
-              className="w-full rounded-lg border border-border bg-bg-elevated px-4 py-2.5 text-sm text-text-primary outline-none focus:border-accent"
+              disabled={!uploadCategory}
+              className="w-full rounded-lg border border-border bg-bg-elevated px-4 py-2.5 text-sm text-text-primary outline-none focus:border-accent disabled:opacity-50"
             >
-              <option value="">Select event...</option>
-              {events.map((ev) => {
-                const cat = categories.find((c) => c.id === ev.category_id);
-                return (
+              <option value="">No specific event (today&apos;s date)</option>
+              {events
+                .filter((ev) => !uploadCategory || ev.category_id === uploadCategory)
+                .map((ev) => (
                   <option key={ev.id} value={ev.id}>
-                    {cat?.name} — {ev.name || ev.date}
+                    {ev.name || ev.date}
                   </option>
-                );
-              })}
+                ))}
             </select>
           </div>
           <div>
@@ -753,6 +644,7 @@ export default function AdminPage() {
               onChange={(e) => setVehicleType(e.target.value)}
               className="w-full rounded-lg border border-border bg-bg-elevated px-4 py-2.5 text-sm text-text-primary outline-none focus:border-accent"
             >
+              <option value="none">None</option>
               <option value="car">Car</option>
               <option value="motorcycle">Motorcycle</option>
               <option value="truck">Truck</option>
@@ -814,9 +706,9 @@ export default function AdminPage() {
               </p>
               <button
                 onClick={uploadAll}
-                disabled={uploading || !selectedEvent}
+                disabled={uploading || !uploadCategory}
                 className={`rounded-lg px-6 py-2.5 text-sm font-semibold text-white ${
-                  uploading || !selectedEvent
+                  uploading || !uploadCategory
                     ? "bg-bg-elevated text-text-muted cursor-not-allowed"
                     : "bg-accent hover:bg-accent-hover"
                 }`}
@@ -1071,6 +963,7 @@ export default function AdminPage() {
                             onChange={(e) => setEditPhotoVehicle(e.target.value)}
                             className="mb-1 w-full rounded border border-border bg-black/80 px-2 py-1 text-xs text-text-primary outline-none"
                           >
+                            <option value="none">None</option>
                             <option value="car">Car</option>
                             <option value="motorcycle">Motorcycle</option>
                             <option value="truck">Truck</option>

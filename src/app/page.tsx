@@ -59,51 +59,59 @@ export default async function HomePage() {
 
   const categories: Category[] = cats ?? [];
 
-  // Fetch recent photos (last 7 days) with their category slug for linking
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-  const { data: rawPhotos } = await supabase
-    .from("photos")
-    .select("id, thumbnail_url, events!inner(category_id, categories!inner(slug))")
-    .gte("created_at", sevenDaysAgo.toISOString())
-    .limit(60);
-
-  const recentPhotos: RecentPhoto[] = shuffle(
-    (rawPhotos ?? [])
-      .map((p: { id: string; thumbnail_url: string; events: { categories: { slug: string } } }) => ({
-        id: p.id,
-        thumbnail_url: p.thumbnail_url,
-        categorySlug: p.events?.categories?.slug ?? "",
-      }))
-      .filter((p) => p.categorySlug)
-  ).slice(0, 15);
-
-  // Count photos per category for the category cards
+  // Fetch all events — used for category photo counts AND carousel slug lookup
   const { data: allEventsData } = await supabase
     .from("events")
     .select("id, category_id");
 
   const allEvts = allEventsData ?? [];
   const allEventIds = allEvts.map((e: { id: string }) => e.id);
+
+  // Build event_id → category_id map
+  const eventCatMap: Record<string, string> = {};
+  allEvts.forEach((e: { id: string; category_id: string }) => {
+    eventCatMap[e.id] = e.category_id;
+  });
+
+  // Build category_id → slug map
+  const catSlugMap: Record<string, string> = {};
+  categories.forEach((c) => { catSlugMap[c.id] = c.slug; });
+
+  // Count photos per category
   const categoryPhotoCounts: Record<string, number> = {};
 
+  // Fetch recent photos (last 7 days) — simple query, no nested join
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const { data: rawPhotos } = await supabase
+    .from("photos")
+    .select("id, thumbnail_url, event_id")
+    .gte("created_at", sevenDaysAgo.toISOString())
+    .limit(60);
+
+  // Also count all photos per category
   if (allEventIds.length > 0) {
     const { data: photoData } = await supabase
       .from("photos")
       .select("event_id")
       .in("event_id", allEventIds);
 
-    const eventCatMap: Record<string, string> = {};
-    allEvts.forEach((e: { id: string; category_id: string }) => {
-      eventCatMap[e.id] = e.category_id;
-    });
-
     (photoData ?? []).forEach((p: { event_id: string }) => {
       const catId = eventCatMap[p.event_id];
       if (catId) categoryPhotoCounts[catId] = (categoryPhotoCounts[catId] || 0) + 1;
     });
   }
+
+  const recentPhotos: RecentPhoto[] = shuffle(
+    (rawPhotos ?? [])
+      .map((p: { id: string; thumbnail_url: string; event_id: string }) => {
+        const catId = eventCatMap[p.event_id];
+        const slug = catId ? catSlugMap[catId] : "";
+        return { id: p.id, thumbnail_url: p.thumbnail_url, categorySlug: slug ?? "" };
+      })
+      .filter((p) => p.categorySlug)
+  ).slice(0, 15);
 
   return (
     <div>

@@ -71,7 +71,8 @@ export function CategoryPageClient({
 
   const [category, setCategory] = useState<Category | null>(null);
   const [events, setEvents] = useState<EventRow[]>([]);
-  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [photos, setPhotos] = useState<Photo[]>([]);           // selected named event's photos
+  const [datePhotos, setDatePhotos] = useState<Photo[]>([]);   // unnamed event photos for the date
   const [photoCounts, setPhotoCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
@@ -79,6 +80,7 @@ export function CategoryPageClient({
     loadCategory();
   }, [params.slug]);
 
+  // When a named event is selected, load its photos
   useEffect(() => {
     if (selectedEventId) {
       loadPhotos(selectedEventId);
@@ -86,6 +88,20 @@ export function CategoryPageClient({
       setPhotos([]);
     }
   }, [selectedEventId]);
+
+  // When the date changes, load photos from all unnamed events on that date
+  useEffect(() => {
+    if (selectedDate && events.length > 0) {
+      const unnamed = events.filter((e) => e.date === selectedDate && !e.name);
+      if (unnamed.length > 0) {
+        loadDatePhotos(unnamed.map((e) => e.id));
+      } else {
+        setDatePhotos([]);
+      }
+    } else {
+      setDatePhotos([]);
+    }
+  }, [selectedDate, events]);
 
   const loadCategory = async () => {
     setLoading(true);
@@ -128,11 +144,11 @@ export function CategoryPageClient({
         }
       }
 
-      // Auto-select event if URL has a date and only one event on that date
+      // Auto-select if URL has a date with exactly one named event
       const urlDate = searchParams.get("date");
       if (urlDate) {
-        const onDate = evts.filter((e: EventRow) => e.date === urlDate);
-        if (onDate.length === 1) setSelectedEventId(onDate[0].id);
+        const named = evts.filter((e: EventRow) => e.date === urlDate && e.name);
+        if (named.length === 1) setSelectedEventId(named[0].id);
       }
     }
 
@@ -145,8 +161,16 @@ export function CategoryPageClient({
       .select("*")
       .eq("event_id", eventId)
       .order("created_at", { ascending: false });
-
     if (data) setPhotos(data);
+  };
+
+  const loadDatePhotos = async (eventIds: string[]) => {
+    const { data } = await supabase
+      .from("photos")
+      .select("*")
+      .in("event_id", eventIds)
+      .order("created_at", { ascending: false });
+    if (data) setDatePhotos(data);
   };
 
   if (loading) {
@@ -193,7 +217,18 @@ export function CategoryPageClient({
       ? new Date(events[events.length - 1].date + "T12:00:00")
       : new Date();
 
+  // Named events on the selected date (require tapping to see photos)
+  const namedEventsOnDate = eventsOnSelectedDate.filter((e) => !!e.name);
+
   const filtered = photos.filter((p) => {
+    const matchVehicle =
+      filters.vehicleType === "All" ||
+      p.vehicle_type === filters.vehicleType.toLowerCase();
+    const matchColor = filters.color === "All" || p.color === filters.color;
+    return matchVehicle && matchColor;
+  });
+
+  const filteredDatePhotos = datePhotos.filter((p) => {
     const matchVehicle =
       filters.vehicleType === "All" ||
       p.vehicle_type === filters.vehicleType.toLowerCase();
@@ -227,67 +262,85 @@ export function CategoryPageClient({
         minDate={minDate}
       />
 
-      {/* Multiple events on selected date — show picker */}
-      {selectedDate && !selectedEventId && eventsOnSelectedDate.length > 1 && (
+      {/* Date selected — show named event cards + unnamed photos */}
+      {selectedDate && !selectedEventId && (
         <div className="mt-10">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-xl tracking-wider text-text-secondary">
-              {eventsOnSelectedDate.length} EVENTS ON THIS DATE
+              {new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase()}
             </h2>
             <button onClick={handleClear} className="text-xs text-text-muted transition-colors hover:text-text-secondary">
               Clear selection
             </button>
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {eventsOnSelectedDate.map((ev) => (
-              <button
-                key={ev.id}
-                onClick={() => setSelectedEventId(ev.id)}
-                className="group flex items-center gap-5 rounded-xl border border-accent/30 bg-bg-card p-5 text-left transition-all hover:border-accent/60 hover:bg-bg-elevated"
-              >
-                <div className="flex h-16 w-16 flex-shrink-0 flex-col items-center justify-center rounded-lg bg-accent/10">
-                  <span className="font-display text-2xl text-accent">
-                    {new Date(ev.date + "T12:00:00").getDate()}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="font-display text-lg tracking-wider text-text-primary">
-                    {(ev.name || "Untitled").toUpperCase()}
-                  </h3>
-                  <p className="text-sm text-text-secondary">
-                    {photoCounts[ev.id] || 0} photos
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
+
+          {/* Named event cards */}
+          {namedEventsOnDate.length > 0 && (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {namedEventsOnDate.map((ev) => (
+                <button
+                  key={ev.id}
+                  onClick={() => setSelectedEventId(ev.id)}
+                  className="group flex items-center gap-5 rounded-xl border border-accent/30 bg-bg-card p-5 text-left transition-all hover:border-accent/60 hover:bg-bg-elevated"
+                >
+                  <div className="flex h-16 w-16 flex-shrink-0 flex-col items-center justify-center rounded-lg bg-accent/10">
+                    <span className="font-display text-2xl text-accent">
+                      {new Date(ev.date + "T12:00:00").getDate()}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="font-display text-lg tracking-wider text-text-primary">
+                      {ev.name!.toUpperCase()}
+                    </h3>
+                    <p className="text-sm text-text-secondary">
+                      {photoCounts[ev.id] || 0} photos — tap to view
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Unnamed / street photos — show directly */}
+          {filteredDatePhotos.length > 0 && (
+            <div className="mt-8">
+              {namedEventsOnDate.length > 0 && (
+                <p className="mb-4 text-xs tracking-wider text-text-muted">STREET / GENERAL PHOTOS</p>
+              )}
+              <FilterBar onFilterChange={setFilters} />
+              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {filteredDatePhotos.map((photo) => (
+                  <PhotoCard key={photo.id} photo={photo} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {namedEventsOnDate.length === 0 && filteredDatePhotos.length === 0 && (
+            <p className="mt-8 text-text-muted">No photos for this date.</p>
+          )}
         </div>
       )}
 
-      {/* Photos view for selected event */}
+      {/* Named event selected — show just those photos */}
       {selectedEvent && (
         <div className="mt-10">
           <div className="flex items-end justify-between">
             <div>
-              {eventsOnSelectedDate.length > 1 && (
-                <button
-                  onClick={() => setSelectedEventId(null)}
-                  className="mb-2 text-xs text-accent transition-colors hover:text-accent-hover"
-                >
-                  ← Back to events on this date
-                </button>
-              )}
+              <button
+                onClick={() => setSelectedEventId(null)}
+                className="mb-2 text-xs text-accent transition-colors hover:text-accent-hover"
+              >
+                ← Back to {new Date(selectedEvent.date + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric" })}
+              </button>
               <h2 className="font-display text-2xl tracking-wider text-text-primary">
-                {(selectedEvent.name || "Untitled").toUpperCase()}
+                {selectedEvent.name!.toUpperCase()}
               </h2>
               <p className="mt-1 text-sm text-text-secondary">
                 {filtered.length} photo{filtered.length !== 1 ? "s" : ""}
               </p>
             </div>
-            <button
-              onClick={handleClear}
-              className="text-xs text-text-muted transition-colors hover:text-text-secondary"
-            >
+            <button onClick={handleClear} className="text-xs text-text-muted transition-colors hover:text-text-secondary">
               Clear selection
             </button>
           </div>
@@ -303,21 +356,19 @@ export function CategoryPageClient({
           </div>
 
           {filtered.length === 0 && (
-            <p className="mt-12 text-center text-text-muted">
-              No photos match your filters.
-            </p>
+            <p className="mt-12 text-center text-text-muted">No photos match your filters.</p>
           )}
         </div>
       )}
 
-      {/* All events list — shown when nothing selected */}
+      {/* All events list — shown when no date selected, only named events */}
       {!selectedDate && (
         <div className="mt-10">
           <h2 className="font-display text-xl tracking-wider text-text-secondary">
             ALL EVENTS
           </h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {events.map((event) => {
+            {events.filter((e) => !!e.name).map((event) => {
               const dateObj = new Date(event.date + "T12:00:00");
               return (
                 <button
@@ -339,7 +390,7 @@ export function CategoryPageClient({
                   </div>
                   <div>
                     <h3 className="font-display text-lg tracking-wider text-text-primary">
-                      {(event.name || "Untitled").toUpperCase()}
+                      {event.name!.toUpperCase()}
                     </h3>
                     <p className="text-sm text-text-secondary">
                       {photoCounts[event.id] || 0} photos
@@ -348,7 +399,7 @@ export function CategoryPageClient({
                 </button>
               );
             })}
-            {events.length === 0 && (
+            {events.filter((e) => !!e.name).length === 0 && (
               <p className="text-text-muted">No events yet for this category.</p>
             )}
           </div>

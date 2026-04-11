@@ -337,7 +337,8 @@ export default function AdminPage() {
     // If no specific event selected, find or create a same-day event for this category
     let eventId = selectedEvent;
     if (!eventId) {
-      const today = new Date().toISOString().split("T")[0];
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       const { data: existing } = await supabase
         .from("events")
         .select("id")

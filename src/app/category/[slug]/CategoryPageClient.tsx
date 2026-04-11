@@ -32,7 +32,7 @@ interface Photo {
 }
 
 interface CalendarProps {
-  eventDates: Map<string, EventRow>;
+  eventDates: Map<string, EventRow[]>;
   selectedDate: string | null;
   onSelectDate: (date: string) => void;
   minDate: Date;
@@ -48,16 +48,27 @@ export function CategoryPageClient({
   const [selectedDate, setSelectedDate] = useState<string | null>(
     searchParams.get("date")
   );
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [filters, setFilters] = useState({ vehicleType: "All", color: "All" });
 
   const handleSelectDate = (date: string) => {
-    const next = date === selectedDate ? null : date;
-    setSelectedDate(next);
-    const url = next
-      ? `/category/${params.slug}?date=${next}`
-      : `/category/${params.slug}`;
-    router.replace(url, { scroll: false });
+    if (date === selectedDate) {
+      setSelectedDate(null);
+      setSelectedEventId(null);
+      router.replace(`/category/${params.slug}`, { scroll: false });
+      return;
+    }
+    setSelectedDate(date);
+    setSelectedEventId(null);
+    router.replace(`/category/${params.slug}?date=${date}`, { scroll: false });
   };
+
+  const handleClear = () => {
+    setSelectedDate(null);
+    setSelectedEventId(null);
+    router.replace(`/category/${params.slug}`, { scroll: false });
+  };
+
   const [category, setCategory] = useState<Category | null>(null);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -69,12 +80,12 @@ export function CategoryPageClient({
   }, [params.slug]);
 
   useEffect(() => {
-    if (selectedDate && category) {
-      loadPhotos();
+    if (selectedEventId) {
+      loadPhotos(selectedEventId);
     } else {
       setPhotos([]);
     }
-  }, [selectedDate, category]);
+  }, [selectedEventId]);
 
   const loadCategory = async () => {
     setLoading(true);
@@ -116,21 +127,23 @@ export function CategoryPageClient({
           setPhotoCounts(map);
         }
       }
+
+      // Auto-select event if URL has a date and only one event on that date
+      const urlDate = searchParams.get("date");
+      if (urlDate) {
+        const onDate = evts.filter((e: EventRow) => e.date === urlDate);
+        if (onDate.length === 1) setSelectedEventId(onDate[0].id);
+      }
     }
 
     setLoading(false);
   };
 
-  const loadPhotos = async () => {
-    if (!category || !selectedDate) return;
-
-    const event = events.find((e) => e.date === selectedDate);
-    if (!event) return;
-
+  const loadPhotos = async (eventId: string) => {
     const { data } = await supabase
       .from("photos")
       .select("*")
-      .eq("event_id", event.id)
+      .eq("event_id", eventId)
       .order("created_at", { ascending: false });
 
     if (data) setPhotos(data);
@@ -162,11 +175,18 @@ export function CategoryPageClient({
     );
   }
 
-  const eventDates = new Map<string, EventRow>(
-    events.map((e) => [e.date, e])
-  );
+  // Group events by date — multiple events can share a date
+  const eventDates = new Map<string, EventRow[]>();
+  for (const e of events) {
+    const existing = eventDates.get(e.date) ?? [];
+    eventDates.set(e.date, [...existing, e]);
+  }
 
-  const selectedEvent = selectedDate ? eventDates.get(selectedDate) : null;
+  const selectedEvent = selectedEventId
+    ? events.find((e) => e.id === selectedEventId) ?? null
+    : null;
+
+  const eventsOnSelectedDate = selectedDate ? (eventDates.get(selectedDate) ?? []) : [];
 
   const minDate =
     events.length > 0
@@ -207,10 +227,56 @@ export function CategoryPageClient({
         minDate={minDate}
       />
 
+      {/* Multiple events on selected date — show picker */}
+      {selectedDate && !selectedEventId && eventsOnSelectedDate.length > 1 && (
+        <div className="mt-10">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-xl tracking-wider text-text-secondary">
+              {eventsOnSelectedDate.length} EVENTS ON THIS DATE
+            </h2>
+            <button onClick={handleClear} className="text-xs text-text-muted transition-colors hover:text-text-secondary">
+              Clear selection
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {eventsOnSelectedDate.map((ev) => (
+              <button
+                key={ev.id}
+                onClick={() => setSelectedEventId(ev.id)}
+                className="group flex items-center gap-5 rounded-xl border border-accent/30 bg-bg-card p-5 text-left transition-all hover:border-accent/60 hover:bg-bg-elevated"
+              >
+                <div className="flex h-16 w-16 flex-shrink-0 flex-col items-center justify-center rounded-lg bg-accent/10">
+                  <span className="font-display text-2xl text-accent">
+                    {new Date(ev.date + "T12:00:00").getDate()}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-display text-lg tracking-wider text-text-primary">
+                    {(ev.name || "Untitled").toUpperCase()}
+                  </h3>
+                  <p className="text-sm text-text-secondary">
+                    {photoCounts[ev.id] || 0} photos
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Photos view for selected event */}
       {selectedEvent && (
         <div className="mt-10">
           <div className="flex items-end justify-between">
             <div>
+              {eventsOnSelectedDate.length > 1 && (
+                <button
+                  onClick={() => setSelectedEventId(null)}
+                  className="mb-2 text-xs text-accent transition-colors hover:text-accent-hover"
+                >
+                  ← Back to events on this date
+                </button>
+              )}
               <h2 className="font-display text-2xl tracking-wider text-text-primary">
                 {(selectedEvent.name || "Untitled").toUpperCase()}
               </h2>
@@ -219,7 +285,7 @@ export function CategoryPageClient({
               </p>
             </div>
             <button
-              onClick={() => { setSelectedDate(null); router.replace(`/category/${params.slug}`, { scroll: false }); }}
+              onClick={handleClear}
               className="text-xs text-text-muted transition-colors hover:text-text-secondary"
             >
               Clear selection
@@ -244,7 +310,8 @@ export function CategoryPageClient({
         </div>
       )}
 
-      {!selectedEvent && (
+      {/* All events list — shown when nothing selected */}
+      {!selectedDate && (
         <div className="mt-10">
           <h2 className="font-display text-xl tracking-wider text-text-secondary">
             ALL EVENTS
@@ -255,7 +322,11 @@ export function CategoryPageClient({
               return (
                 <button
                   key={event.id}
-                  onClick={() => setSelectedDate(event.date)}
+                  onClick={() => {
+                    setSelectedDate(event.date);
+                    setSelectedEventId(event.id);
+                    router.replace(`/category/${params.slug}?date=${event.date}`, { scroll: false });
+                  }}
                   className="group flex items-center gap-5 rounded-xl border border-border bg-bg-card p-5 text-left transition-all hover:border-accent/40 hover:bg-bg-elevated"
                 >
                   <div className="flex h-16 w-16 flex-shrink-0 flex-col items-center justify-center rounded-lg bg-bg-elevated group-hover:bg-accent/10">
@@ -419,15 +490,16 @@ function Calendar({
             }
 
             const dateStr = formatDateStr(day);
-            const event = eventDates.get(dateStr);
+            const dateEvents = eventDates.get(dateStr);
             const isToday =
               day === today.getDate() &&
               currentMonth === today.getMonth() &&
               currentYear === today.getFullYear();
             const isSelected = dateStr === selectedDate;
 
-            if (event) {
-              const count = photoCounts[event.id] || 0;
+            if (dateEvents && dateEvents.length > 0) {
+              const totalPhotos = dateEvents.reduce((sum, ev) => sum + (photoCounts[ev.id] || 0), 0);
+              const multi = dateEvents.length > 1;
               return (
                 <button
                   key={`${wi}-${di}`}
@@ -441,11 +513,27 @@ function Calendar({
                   <span className={`text-sm font-semibold ${isSelected ? "text-white" : "text-accent"}`}>
                     {day}
                   </span>
-                  <span className={`mt-0.5 h-1.5 w-1.5 rounded-full ${isSelected ? "bg-white" : "bg-accent"}`} />
+                  {multi ? (
+                    <span className={`mt-0.5 text-[9px] font-bold leading-none ${isSelected ? "text-white" : "text-accent"}`}>
+                      {dateEvents.length}
+                    </span>
+                  ) : (
+                    <span className={`mt-0.5 h-1.5 w-1.5 rounded-full ${isSelected ? "bg-white" : "bg-accent"}`} />
+                  )}
                   <div className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-bg-elevated border border-border px-3 py-2 text-xs text-text-primary opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none z-10">
-                    <span className="font-semibold">{event.name || "Event"}</span>
-                    <br />
-                    <span className="text-text-secondary">{count} photos</span>
+                    {multi ? (
+                      <>
+                        <span className="font-semibold">{dateEvents.length} events</span>
+                        <br />
+                        <span className="text-text-secondary">{totalPhotos} photos total</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-semibold">{dateEvents[0].name || "Event"}</span>
+                        <br />
+                        <span className="text-text-secondary">{totalPhotos} photos</span>
+                      </>
+                    )}
                   </div>
                 </button>
               );

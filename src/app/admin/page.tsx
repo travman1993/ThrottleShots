@@ -71,6 +71,7 @@ export default function AdminPage() {
 
   // Upload results
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
+  const [failedFiles, setFailedFiles] = useState<File[]>([]);
   const [uploadDone, setUploadDone] = useState(false);
 
   // Manage photos
@@ -348,6 +349,7 @@ export default function AdminPage() {
     }
 
     const errors: string[] = [];
+    const failed: File[] = [];
 
     for (let i = 0; i < uploadQueue.length; i++) {
       const { file } = uploadQueue[i];
@@ -359,9 +361,13 @@ export default function AdminPage() {
       try {
         const res = await fetch("/api/upload", { method: "POST", body: formData });
         const data = await res.json();
-        if (!data.photo) errors.push(file.name);
-      } catch {
-        errors.push(file.name);
+        if (!data.photo) {
+          errors.push(`${file.name}${data.error ? ` — ${data.error}` : ""}`);
+          failed.push(file);
+        }
+      } catch (err) {
+        errors.push(`${file.name} — ${err instanceof Error ? err.message : "Network error"}`);
+        failed.push(file);
       }
       setUploadProgress(i + 1);
     }
@@ -369,6 +375,7 @@ export default function AdminPage() {
     setUploadQueue((prev) => { prev.forEach((item) => URL.revokeObjectURL(item.previewUrl)); return []; });
     setUploading(false);
     setUploadErrors(errors);
+    setFailedFiles(failed);
     setUploadDone(true);
     loadStats();
     if (manageEvent === selectedEvent) loadEventPhotos(manageEvent);
@@ -751,10 +758,23 @@ export default function AdminPage() {
               </p>
             ) : (
               <div>
-                <p className="text-sm text-text-secondary">
-                  {uploadTotal - uploadErrors.length}/{uploadTotal} uploaded.{" "}
-                  <span className="text-red-400">{uploadErrors.length} failed:</span>
-                </p>
+                <div className="flex items-center gap-4">
+                  <p className="text-sm text-text-secondary">
+                    {uploadTotal - uploadErrors.length}/{uploadTotal} uploaded.{" "}
+                    <span className="text-red-400">{uploadErrors.length} failed:</span>
+                  </p>
+                  <button
+                    onClick={() => {
+                      handleFiles(failedFiles);
+                      setUploadErrors([]);
+                      setFailedFiles([]);
+                      setUploadDone(false);
+                    }}
+                    className="rounded-lg border border-red-500/40 px-3 py-1 text-xs text-red-400 transition-colors hover:bg-red-500/10"
+                  >
+                    Retry Failed
+                  </button>
+                </div>
                 <ul className="mt-1 space-y-0.5">
                   {uploadErrors.map((name) => (
                     <li key={name} className="text-xs text-red-400">{name}</li>

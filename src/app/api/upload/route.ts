@@ -49,12 +49,14 @@ export async function POST(req: NextRequest) {
     const vehicleType = formData.get("vehicle_type") as string;
     const color = formData.get("color") as string;
 
-    if (!file || !eventId || !vehicleType) {
+    if (!file || !eventId) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
+
+    const vehicleTypeValue = (!vehicleType || vehicleType === "none") ? null : vehicleType;
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const timestamp = Date.now();
@@ -157,7 +159,7 @@ export async function POST(req: NextRequest) {
         image_url_original: baseName,
         image_url_watermarked: wmUrl.publicUrl,
         thumbnail_url: thumbUrl.publicUrl,
-        vehicle_type: vehicleType,
+        vehicle_type: vehicleTypeValue,
         color: color || null,
         price: 9.99,
       })

@@ -40,6 +40,8 @@ const categoryImages: Record<string, string> = {
     "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800&q=80",
   "events":
     "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&q=80",
+  "commercial":
+    "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=800&q=80",
 };
 
 export default async function HomePage() {

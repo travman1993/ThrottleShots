@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { NotifyForm } from "@/components/NotifyForm";
+import { RecentPhotosCarousel } from "@/components/RecentPhotosCarousel";
 
 interface Category {
   id: string;
@@ -10,15 +11,10 @@ interface Category {
   image_url: string | null;
 }
 
-interface EventWithCategory {
+interface RecentPhoto {
   id: string;
-  category_id: string;
-  date: string;
-  name: string;
-  categories: {
-    name: string;
-    slug: string;
-  } | null;
+  thumbnail_url: string;
+  categorySlug: string;
 }
 
 const categoryImages: Record<string, string> = {
@@ -44,6 +40,17 @@ const categoryImages: Record<string, string> = {
     "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=800&q=80",
 };
 
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+export const revalidate = 300; // re-randomize every 5 minutes
+
 export default async function HomePage() {
   const { data: cats } = await supabase
     .from("categories")
@@ -52,33 +59,25 @@ export default async function HomePage() {
 
   const categories: Category[] = cats ?? [];
 
-  const { data: evts } = await supabase
-    .from("events")
-    .select("*, categories(name, slug)")
-    .order("date", { ascending: false })
-    .limit(4);
+  // Fetch recent photos (last 7 days) with their category slug for linking
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const recentEvents: EventWithCategory[] = (evts ?? []).filter(
-    (e): e is EventWithCategory & { categories: { name: string; slug: string } } =>
-      e.categories !== null
-  );
+  const { data: rawPhotos } = await supabase
+    .from("photos")
+    .select("id, thumbnail_url, events!inner(category_id, categories!inner(slug))")
+    .gte("created_at", sevenDaysAgo.toISOString())
+    .limit(60);
 
-  // Count photos only for the 4 fetched events
-  const eventIds = recentEvents.map((e) => e.id);
-  const photoCounts: Record<string, number> = {};
-
-  if (eventIds.length > 0) {
-    const { data: counts } = await supabase
-      .from("photos")
-      .select("event_id")
-      .in("event_id", eventIds);
-
-    if (counts) {
-      counts.forEach((row: { event_id: string }) => {
-        photoCounts[row.event_id] = (photoCounts[row.event_id] || 0) + 1;
-      });
-    }
-  }
+  const recentPhotos: RecentPhoto[] = shuffle(
+    (rawPhotos ?? [])
+      .map((p: { id: string; thumbnail_url: string; events: { categories: { slug: string } } }) => ({
+        id: p.id,
+        thumbnail_url: p.thumbnail_url,
+        categorySlug: p.events?.categories?.slug ?? "",
+      }))
+      .filter((p) => p.categorySlug)
+  ).slice(0, 15);
 
   // Count photos per category for the category cards
   const { data: allEventsData } = await supabase
@@ -164,45 +163,20 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Recent Shoots */}
-      <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
-        <h2 className="font-display text-3xl tracking-wider text-text-primary">
-          RECENT SHOOTS
-        </h2>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {recentEvents.map((event) => (
-            <Link
-              key={event.id}
-              href={`/category/${event.categories!.slug}`}
-              className="group rounded-xl border border-border bg-bg-card p-5 transition-all hover:border-border-hover hover:bg-bg-elevated"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-accent">
-                  {event.categories!.name}
-                </span>
-                <span className="text-xs text-text-muted">
-                  {new Date(event.date + "T12:00:00").toLocaleDateString(
-                    "en-US",
-                    {
-                      month: "short",
-                      day: "numeric",
-                    }
-                  )}
-                </span>
-              </div>
-              <h3 className="mt-2 font-display text-xl tracking-wider text-text-primary">
-                {(event.name || "Untitled").toUpperCase()}
-              </h3>
-              <p className="mt-1 text-sm text-text-secondary">
-                {photoCounts[event.id] || 0} photos
-              </p>
-            </Link>
-          ))}
-          {recentEvents.length === 0 && (
-            <p className="text-text-muted">No events yet. Create one in Admin.</p>
-          )}
-        </div>
-      </section>
+      {/* Recent Shots carousel */}
+      {recentPhotos.length > 0 && (
+        <section className="pb-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <h2 className="font-display text-3xl tracking-wider text-text-primary">
+              RECENT SHOTS
+            </h2>
+            <p className="mt-2 text-sm text-text-muted">From the last 7 days</p>
+          </div>
+          <div className="mt-8">
+            <RecentPhotosCarousel photos={recentPhotos} />
+          </div>
+        </section>
+      )}
 
       {/* Book a Shoot CTA */}
       <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">

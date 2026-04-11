@@ -88,6 +88,7 @@ export default function AdminPage() {
   const [editEventMsg, setEditEventMsg] = useState("");
   const [confirmDeleteEvent, setConfirmDeleteEvent] = useState(false);
   const [deletingEvent, setDeletingEvent] = useState(false);
+  const [confirmDeleteEventId, setConfirmDeleteEventId] = useState<string | null>(null);
 
   // Edit photo
   const [editingPhoto, setEditingPhoto] = useState<string | null>(null);
@@ -220,6 +221,21 @@ export default function AdminPage() {
     }
     setDeletingEvent(false);
     setConfirmDeleteEvent(false);
+  };
+
+  const deleteEventById = async (id: string) => {
+    try {
+      const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        if (manageEvent === id) setManageEvent("");
+        loadEvents();
+        loadStats();
+      }
+    } catch (err) {
+      console.error("Delete event error:", err);
+    }
+    setConfirmDeleteEventId(null);
   };
 
   const startEditEvent = (ev: EventRow) => {
@@ -607,6 +623,51 @@ export default function AdminPage() {
           Create Event
         </button>
         {eventMsg && <p className="mt-2 text-sm text-text-secondary">{eventMsg}</p>}
+
+        {/* Events list */}
+        {events.length > 0 && (
+          <div className="mt-6 space-y-2">
+            <p className="text-xs tracking-wider text-text-muted">ALL EVENTS</p>
+            {events.map((ev) => {
+              const cat = categories.find((c) => c.id === ev.category_id);
+              const dateObj = new Date(ev.date + "T12:00:00");
+              return (
+                <div key={ev.id} className="flex items-center justify-between gap-4 rounded-xl border border-border bg-bg-card px-4 py-3">
+                  <div>
+                    <span className="text-sm text-text-primary">{ev.name || "—"}</span>
+                    <span className="ml-3 text-xs text-text-muted">
+                      {cat?.name} · {dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </span>
+                  </div>
+                  {confirmDeleteEventId === ev.id ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-text-muted">Delete?</span>
+                      <button
+                        onClick={() => deleteEventById(ev.id)}
+                        className="rounded bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-700"
+                      >
+                        Yes
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteEventId(null)}
+                        className="text-xs text-text-muted hover:text-text-secondary"
+                      >
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmDeleteEventId(ev.id)}
+                      className="text-xs text-text-muted transition-colors hover:text-red-400"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* Upload Photos */}

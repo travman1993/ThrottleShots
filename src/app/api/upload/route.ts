@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const vehicleTypeValue = (!vehicleType || vehicleType === "none") ? null : vehicleType;
+    const vehicleTypeValue = vehicleType || "none";
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const timestamp = Date.now();

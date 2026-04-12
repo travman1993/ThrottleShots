@@ -104,11 +104,27 @@ export default function AdminPage() {
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
+  // Photographers
+  interface PhotographerRow {
+    id: string;
+    name: string;
+    stripeAccountId: string | null;
+    isConfigured: boolean;
+  }
+  const [photographers, setPhotographers] = useState<PhotographerRow[]>([]);
+
+  const loadPhotographers = async () => {
+    const res = await fetch("/api/photographers");
+    const data = await res.json();
+    if (data.photographers) setPhotographers(data.photographers);
+  };
+
   useEffect(() => {
     loadCategories();
     loadEvents();
     loadStats();
     loadBookings();
+    loadPhotographers();
   }, []);
 
   useEffect(() => {
@@ -1140,6 +1156,40 @@ export default function AdminPage() {
         {manageEvent && eventPhotos.length === 0 && (
           <p className="mt-6 text-text-muted">No photos for this event.</p>
         )}
+      </section>
+
+      {/* Photographers */}
+      <section className="mt-16">
+        <h2 className="font-display text-2xl tracking-wider text-text-secondary">PHOTOGRAPHERS</h2>
+        <div className="mt-4 flex flex-col gap-3">
+          {photographers.map((p) => (
+            <div key={p.id} className="flex items-center justify-between rounded-xl border border-border bg-bg-card px-5 py-4">
+              <div>
+                <p className="text-sm font-semibold text-text-primary">{p.name}</p>
+                <p className="mt-0.5 text-xs text-text-muted">ID: {p.id}</p>
+              </div>
+              <div className="text-right">
+                {p.isConfigured ? (
+                  <>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
+                      Stripe Connected
+                    </span>
+                    <p className="mt-1 font-mono text-xs text-text-muted">{p.stripeAccountId}</p>
+                  </>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-500/10 px-2.5 py-0.5 text-xs font-medium text-yellow-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+                    {p.id === "travis" ? "Platform Owner" : "Not Connected"}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-text-muted">
+          To add or update Stripe account IDs, set the env var (e.g. CHRIS_STRIPE_ACCOUNT_ID) and redeploy.
+        </p>
       </section>
 
       {/* Cleanup */}

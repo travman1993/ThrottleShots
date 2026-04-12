@@ -1175,11 +1175,11 @@ export default function AdminPage() {
                       <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
                       Stripe Connected
                     </span>
-                    <p className="mt-1 font-mono text-xs text-text-muted">{p.stripeAccountId}</p>
+                    <p className="mt-1 font-mono text-xs text-text-muted">acct_••••{p.stripeAccountId!.slice(-4)}</p>
                   </>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-500/10 px-2.5 py-0.5 text-xs font-medium text-yellow-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-cyan-500/10 px-2.5 py-0.5 text-xs font-medium text-cyan-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
                     {p.id === "travis" ? "Platform Owner" : "Not Connected"}
                   </span>
                 )}

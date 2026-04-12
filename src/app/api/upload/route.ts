@@ -59,10 +59,13 @@ export async function POST(req: NextRequest) {
 
     const vehicleTypeValue = vehicleType || "none";
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const rawBuffer = Buffer.from(await file.arrayBuffer());
     const timestamp = Date.now();
     const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
     const baseName = `${timestamp}_${safeName}`;
+
+    // Auto-rotate based on EXIF orientation so portrait/vertical shots are stored correctly
+    const buffer = await sharp(rawBuffer).rotate().toBuffer();
 
     // Get image dimensions
     const metadata = await sharp(buffer).metadata();

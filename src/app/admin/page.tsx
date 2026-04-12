@@ -63,6 +63,7 @@ export default function AdminPage() {
   const [selectedEvent, setSelectedEvent] = useState("");
   const [vehicleType, setVehicleType] = useState("none");
   const [photoColor, setPhotoColor] = useState("");
+  const [photographerId, setPhotographerId] = useState("travis");
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadQueue, setUploadQueue] = useState<{ file: File; previewUrl: string }[]>([]);
@@ -375,6 +376,7 @@ export default function AdminPage() {
       formData.append("event_id", eventId);
       formData.append("vehicle_type", vehicleType);
       formData.append("color", photoColor);
+      formData.append("photographer_id", photographerId);
       try {
         const res = await fetch("/api/upload", { method: "POST", body: formData });
         const data = await res.json();
@@ -674,7 +676,7 @@ export default function AdminPage() {
       {/* Upload Photos */}
       <section className="mt-16">
         <h2 className="font-display text-2xl tracking-wider text-text-secondary">UPLOAD PHOTOS</h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <label className="mb-2 block text-xs text-text-muted">Category *</label>
             <select
@@ -736,6 +738,17 @@ export default function AdminPage() {
               <option value="Yellow">Yellow</option>
               <option value="Green">Green</option>
               <option value="Orange">Orange</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-2 block text-xs text-text-muted">Photographer</label>
+            <select
+              value={photographerId}
+              onChange={(e) => setPhotographerId(e.target.value)}
+              className="w-full rounded-lg border border-border bg-bg-elevated px-4 py-2.5 text-sm text-text-primary outline-none focus:border-accent"
+            >
+              <option value="travis">Travis</option>
+              <option value="chris">Chris</option>
             </select>
           </div>
         </div>

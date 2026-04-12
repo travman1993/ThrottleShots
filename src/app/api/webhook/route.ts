@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { Resend } from "resend";
+import { getPhotographer } from "@/lib/photographers";
 
 export async function POST(req: NextRequest) {
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -43,10 +44,10 @@ export async function POST(req: NextRequest) {
 
     const photoIds = photoIdsRaw.split(",");
 
-    // Look up photo records to get storage paths
+    // Look up photo records to get storage paths and photographer IDs
     const { data: photos, error } = await supabase
       .from("photos")
-      .select("id, image_url_original")
+      .select("id, image_url_original, photographer_id")
       .in("id", photoIds);
 
     if (error || !photos || photos.length === 0) {
@@ -57,6 +58,58 @@ export async function POST(req: NextRequest) {
         payload: JSON.stringify({ photo_ids: photoIds }),
       });
       return NextResponse.json({ error: "Photos not found" }, { status: 500 });
+    }
+
+    // --- Stripe Connect payment splitting ---
+    const totalCents = session.amount_total;
+    const paymentIntentId = session.payment_intent as string | null;
+
+    if (totalCents && paymentIntentId) {
+      try {
+        // Count photos per photographer
+        const photographerCounts: Record<string, number> = {};
+        for (const photo of photos) {
+          const pid = photo.photographer_id || "travis";
+          photographerCounts[pid] = (photographerCounts[pid] || 0) + 1;
+        }
+
+        const totalPhotos = photos.length;
+
+        // Get charge ID from the payment intent (needed for source_transaction)
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+        const chargeId = paymentIntent.latest_charge as string | null;
+
+        // Create transfers for connected photographers (skip Travis — he's the platform)
+        for (const [pid, count] of Object.entries(photographerCounts)) {
+          const photographer = getPhotographer(pid);
+          if (!photographer.stripeAccountId) continue; // platform owner, no transfer
+
+          const transferAmount = Math.round((count / totalPhotos) * totalCents);
+          if (transferAmount <= 0) continue;
+
+          await stripe.transfers.create({
+            amount: transferAmount,
+            currency: "usd",
+            destination: photographer.stripeAccountId,
+            ...(chargeId ? { source_transaction: chargeId } : {}),
+            description: `ThrottleShots — ${count} photo${count !== 1 ? "s" : ""} by ${photographer.name}`,
+            metadata: {
+              stripe_event_id: event.id,
+              photographer_id: pid,
+              photo_count: String(count),
+            },
+          });
+        }
+      } catch (transferErr) {
+        const msg = transferErr instanceof Error ? transferErr.message : "Transfer error";
+        await supabase.from("webhook_failures").insert({
+          stripe_event_id: event.id,
+          event_type: event.type,
+          error: "Stripe transfer failed: " + msg,
+          payload: JSON.stringify({ payment_intent_id: paymentIntentId }),
+        });
+        // Continue — still send download email even if transfer fails
+      }
     }
 
     // Generate signed URLs from the originals bucket (24 hour expiry)

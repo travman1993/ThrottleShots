@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
     const eventId = formData.get("event_id") as string;
     const vehicleType = formData.get("vehicle_type") as string;
     const color = formData.get("color") as string;
+    const photographerId = formData.get("photographer_id") as string | null;
 
     if (!file || !eventId) {
       return NextResponse.json(
@@ -162,6 +163,7 @@ export async function POST(req: NextRequest) {
         vehicle_type: vehicleTypeValue,
         color: color || null,
         price: 9.99,
+        photographer_id: photographerId || "travis",
       })
       .select()
       .single();

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-admin";
-import { calculateCartTotal } from "@/lib/pricing";
+import { calculateCartTotal, getTierRate, MAX_PHOTOS } from "@/lib/pricing";
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No photos selected" }, { status: 400 });
     }
 
-    if (photoIds.length > 10) {
+    if (photoIds.length > MAX_PHOTOS) {
       return NextResponse.json({ error: "Too many photos" }, { status: 400 });
     }
 
@@ -35,12 +35,8 @@ export async function POST(req: NextRequest) {
 
     const count = photos.length;
     const photoLabel = `${count} Photo${count !== 1 ? "s" : ""}`;
-    const bundleNote =
-      count >= 5
-        ? "5-photo bundle"
-        : count >= 3
-        ? "3-photo bundle"
-        : "per-photo rate";
+    const rate = getTierRate(count);
+    const bundleNote = `$${rate.toFixed(2)}/photo tier`;
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 

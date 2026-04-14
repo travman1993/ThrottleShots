@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 
-export const MAX_CART_ITEMS = 10;
+export const MAX_CART_ITEMS = 50;
 const STORAGE_KEY = "throttleshots_cart";
 
 interface Photo {

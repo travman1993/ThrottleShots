@@ -4,11 +4,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
-import { PRICING, calculateCartTotal } from "@/lib/pricing";
+import { PRICING, calculateCartTotal, calculateSavings } from "@/lib/pricing";
 
 export default function CartPage() {
   const { items, removeItem, clearCart } = useCart();
   const total = calculateCartTotal(items.length);
+  const savings = calculateSavings(items.length);
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
 
@@ -40,21 +41,22 @@ export default function CartPage() {
       <h1 className="font-display text-4xl tracking-wider text-text-primary">YOUR CART</h1>
 
       {/* Pricing tiers */}
-      <div className="mt-6 flex gap-3">
-        <div className={`flex-1 rounded-lg border p-3 text-center ${items.length >= 1 && items.length < 3 ? "border-accent bg-accent/10" : "border-border bg-bg-card"}`}>
-          <p className="font-display text-lg text-text-primary">$9.99</p>
-          <p className="text-xs text-text-secondary">per photo</p>
-        </div>
-        <div className={`flex-1 rounded-lg border p-3 text-center ${items.length >= 3 && items.length < 5 ? "border-accent bg-accent/10" : "border-border bg-bg-card"}`}>
-          <p className="font-display text-lg text-text-primary">$19.99</p>
-          <p className="text-xs text-text-secondary">3 photos</p>
-          <p className="text-[10px] text-accent">Save $10</p>
-        </div>
-        <div className={`flex-1 rounded-lg border p-3 text-center ${items.length >= 5 ? "border-accent bg-accent/10" : "border-border bg-bg-card"}`}>
-          <p className="font-display text-lg text-text-primary">$29.99</p>
-          <p className="text-xs text-text-secondary">5 photos</p>
-          <p className="text-[10px] text-accent">Save $20</p>
-        </div>
+      <div className="mt-6 grid grid-cols-4 gap-2">
+        {[
+          { label: "1–4 photos", rate: "$9.99", active: items.length >= 1 && items.length <= 4, savings: null },
+          { label: "5–10 photos", rate: "$7.99", active: items.length >= 5 && items.length <= 10, savings: "Save 20%" },
+          { label: "11–20 photos", rate: "$5.99", active: items.length >= 11 && items.length <= 20, savings: "Save 40%" },
+          { label: "21–50 photos", rate: "$4.99", active: items.length >= 21, savings: "Save 50%" },
+        ].map((tier) => (
+          <div
+            key={tier.label}
+            className={`rounded-lg border p-3 text-center ${tier.active ? "border-accent bg-accent/10" : "border-border bg-bg-card"}`}
+          >
+            <p className="font-display text-base text-text-primary">{tier.rate}</p>
+            <p className="text-[11px] text-text-secondary">{tier.label}</p>
+            {tier.savings && <p className="text-[10px] text-accent">{tier.savings}</p>}
+          </div>
+        ))}
       </div>
 
       {items.length === 0 ? (
@@ -97,21 +99,22 @@ export default function CartPage() {
           <div className="mt-8 rounded-xl border border-border bg-bg-card p-6">
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-text-secondary">{items.length} photo{items.length !== 1 ? "s" : ""}</span>
-                <span className="text-text-secondary">${(items.length * PRICING.single).toFixed(2)}</span>
+                <span className="text-text-secondary">{items.length} photo{items.length !== 1 ? "s" : ""} at $9.99 each</span>
+                <span className="text-text-secondary">${(items.length * PRICING.base).toFixed(2)}</span>
               </div>
-              {total < items.length * PRICING.single && (
+              {savings > 0 && (
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-accent">Bundle discount</span>
-                  <span className="text-accent">
-                    -${(items.length * PRICING.single - total).toFixed(2)}
-                  </span>
+                  <span className="text-accent">Volume discount</span>
+                  <span className="text-accent">-${savings.toFixed(2)}</span>
                 </div>
               )}
               <div className="flex items-center justify-between border-t border-border pt-2">
                 <span className="text-text-primary font-medium">Total</span>
                 <span className="font-display text-3xl text-text-primary">${total.toFixed(2)}</span>
               </div>
+              {savings > 0 && (
+                <p className="text-center text-xs text-accent">You're saving ${savings.toFixed(2)} with volume pricing!</p>
+              )}
             </div>
             {checkoutError && (
               <p className="mt-4 text-center text-sm text-red-400">{checkoutError}</p>
